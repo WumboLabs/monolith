@@ -1,5 +1,36 @@
 # Monolith Changelog
 
+## alpha v0.11.1 - 2026-06-10
+
+Hugging Face GGUF discovery prototype.
+
+### Added
+- Added metadata-only Hugging Face GGUF discovery backend.
+- Added controlled `GET /api/models/discover/huggingface` endpoint.
+- Added stdlib-only Hugging Face API access using `urllib` to avoid new dependency churn.
+- Added public model repo search and GGUF sibling extraction.
+- Added filename-based family, quant, and architecture guesses for remote GGUF candidates.
+- Added case-insensitive local filename matching against the Local GGUF Inventory.
+- Added Hugging Face GGUF Discovery section to `/models`.
+- Added search form, result table, repo links, and local match badges.
+
+### Validation
+- Confirmed `/api/models/discover/huggingface` route registers.
+- Confirmed `qwen2.5 3b gguf` search returns 70 GGUF candidates.
+- Confirmed 10 local matches for existing Qwen2.5 3B local GGUFs.
+- Confirmed `mellum2 gguf` search returns 5 GGUF candidates.
+- Confirmed `/models` UI search renders remote GGUF candidates.
+- Confirmed no download, config-edit, or model-execution controls are exposed.
+
+### Notes
+- File size may show as unknown when Hugging Face repo metadata does not expose size directly.
+- Exact remote file size resolution is deferred to the controlled downloader milestone.
+- No downloader added.
+- No config editing added.
+- No model registration added.
+- No model execution added.
+
+
 ## alpha v0.11.0 - 2026-06-10
 
 Model Registry local inventory.

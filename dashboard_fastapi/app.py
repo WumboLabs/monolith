@@ -636,6 +636,207 @@ def load_local_model_inventory(limit: int = 200) -> dict[str, Any]:
     }
 
 
+def huggingface_json_request(url: str, timeout_seconds: int = 12) -> Any:
+    import json
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "Monolith-Local-AI-Workbench/alpha",
+        },
+        method="GET",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+            body = response.read().decode("utf-8")
+            return json.loads(body)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Hugging Face request failed with HTTP {exc.code}: {detail[:500]}",
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Hugging Face request failed: {exc.reason}",
+        ) from exc
+
+
+def safe_huggingface_repo_id(repo_id: str) -> str:
+    repo_id = repo_id.strip()
+
+    if not repo_id or "/" not in repo_id:
+        raise ValueError("Invalid Hugging Face repo id")
+
+    if ".." in repo_id or repo_id.startswith("/") or repo_id.endswith("/"):
+        raise ValueError("Invalid Hugging Face repo id")
+
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_. /")
+    if any(char not in allowed for char in repo_id):
+        raise ValueError("Invalid Hugging Face repo id")
+
+    return repo_id.replace(" ", "")
+
+
+def load_local_model_filenames() -> set[str]:
+    if not model_registry_tables_exist():
+        return set()
+
+    rows = db_rows(
+        """
+        SELECT filename
+        FROM local_model_files
+        WHERE status IN ('registered', 'discovered')
+        """,
+    )
+
+    return {row["filename"].lower() for row in rows if row.get("filename")}
+
+
+def normalize_huggingface_file_size(value: Any) -> int | None:
+    if isinstance(value, int):
+        return value
+
+    if isinstance(value, float):
+        return int(value)
+
+    return None
+
+
+def huggingface_sibling_size_bytes(sibling: dict[str, Any]) -> int | None:
+    direct_size = normalize_huggingface_file_size(
+        sibling.get("size") or sibling.get("size_bytes")
+    )
+    if direct_size is not None:
+        return direct_size
+
+    lfs = sibling.get("lfs")
+    if isinstance(lfs, dict):
+        return normalize_huggingface_file_size(
+            lfs.get("size") or lfs.get("size_bytes")
+        )
+
+    return None
+
+
+def huggingface_model_info(repo_id: str) -> dict[str, Any]:
+    import urllib.parse
+
+    safe_repo_id = safe_huggingface_repo_id(repo_id)
+    encoded_repo_id = urllib.parse.quote(safe_repo_id, safe="/")
+    url = f"https://huggingface.co/api/models/{encoded_repo_id}"
+
+    data = huggingface_json_request(url)
+    if not isinstance(data, dict):
+        return {}
+
+    return data
+
+
+def search_huggingface_gguf_models(query: str, limit: int = 10) -> dict[str, Any]:
+    import urllib.parse
+
+    query = (query or "").strip()
+    if len(query) < 2:
+        raise HTTPException(status_code=400, detail="Search query must be at least 2 characters.")
+
+    bounded_limit = max(1, min(int(limit or 10), 20))
+    repo_limit = min(bounded_limit, 10)
+
+    search_params = urllib.parse.urlencode(
+        {
+            "search": query,
+            "limit": repo_limit,
+        }
+    )
+    search_url = f"https://huggingface.co/api/models?{search_params}"
+
+    search_data = huggingface_json_request(search_url)
+    if not isinstance(search_data, list):
+        raise HTTPException(status_code=502, detail="Unexpected Hugging Face search response.")
+
+    local_filenames = load_local_model_filenames()
+    candidates: list[dict[str, Any]] = []
+
+    for item in search_data:
+        if not isinstance(item, dict):
+            continue
+
+        repo_id = item.get("id") or item.get("modelId")
+        if not repo_id:
+            continue
+
+        try:
+            info = huggingface_model_info(str(repo_id))
+        except HTTPException:
+            continue
+        except ValueError:
+            continue
+
+        siblings = info.get("siblings") or []
+        if not isinstance(siblings, list):
+            continue
+
+        for sibling in siblings:
+            if not isinstance(sibling, dict):
+                continue
+
+            filename = sibling.get("rfilename") or sibling.get("filename")
+            if not filename or not str(filename).lower().endswith(".gguf"):
+                continue
+
+            filename = str(filename)
+            basename = Path(filename).name
+
+            if basename.lower().startswith("mmproj-") or "mmproj" in basename.lower():
+                continue
+
+            size_bytes = huggingface_sibling_size_bytes(sibling)
+
+            candidates.append(
+                {
+                    "repo_id": str(repo_id),
+                    "filename": filename,
+                    "basename": basename,
+                    "family_guess": guess_model_family_from_filename(basename),
+                    "quant_guess": guess_quant_from_filename(basename),
+                    "architecture_guess": guess_architecture_from_filename(basename),
+                    "size_bytes": size_bytes,
+                    "size_gib": round(float(size_bytes) / (1024 ** 3), 2) if size_bytes else None,
+                    "local_match": basename.lower() in local_filenames,
+                    "download_url": f"https://huggingface.co/{repo_id}/resolve/main/{urllib.parse.quote(filename)}",
+                    "repo_url": f"https://huggingface.co/{repo_id}",
+                }
+            )
+
+    candidates.sort(
+        key=lambda row: (
+            not row["local_match"],
+            row["repo_id"].lower(),
+            row["basename"].lower(),
+        )
+    )
+
+    return {
+        "ok": True,
+        "query": query,
+        "repo_limit": repo_limit,
+        "candidate_count": len(candidates),
+        "candidates": candidates[:100],
+        "policy": {
+            "metadata_only": True,
+            "downloads_enabled": False,
+            "config_edits_enabled": False,
+            "model_execution_enabled": False,
+        },
+    }
+
+
 LLAMA_COMPLETION = os.environ.get(
     "MONOLITH_LLAMA_COMPLETION",
     str(Path.home() / "Projects/local-llm/llama.cpp/build-cuda-sm120/bin/llama-completion"),
@@ -4579,6 +4780,11 @@ def eval_prompt_detail(request: Request, category: str, filename: str):
             "prompt": prompt,
         },
     )
+
+
+@app.get("/api/models/discover/huggingface")
+def api_models_discover_huggingface(q: str, limit: int = 10):
+    return search_huggingface_gguf_models(q, limit)
 
 
 @app.post("/api/models/local-inventory/scan")

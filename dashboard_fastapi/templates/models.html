@@ -37,6 +37,70 @@
 <section class="model-section">
   <div class="section-heading-row">
     <div>
+      <h2>Hugging Face GGUF discovery</h2>
+      <p class="muted">
+        Metadata-only search for public Hugging Face GGUF files. Downloads, config edits, and model execution are not enabled.
+      </p>
+    </div>
+  </div>
+
+  <form id="hf-discovery-form" class="run-form">
+    <div class="form-grid">
+      <label>
+        Search query
+        <input
+          type="text"
+          id="hf-discovery-query"
+          name="q"
+          value="qwen2.5 3b gguf"
+          placeholder="qwen2.5 3b gguf"
+          autocomplete="off"
+        >
+      </label>
+
+      <label>
+        Repo limit
+        <input
+          type="number"
+          id="hf-discovery-limit"
+          name="limit"
+          value="10"
+          min="1"
+          max="20"
+          step="1"
+        >
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="button" id="hf-discovery-button">
+        Search GGUF metadata
+      </button>
+      <span class="micro-muted" id="hf-discovery-status">Idle</span>
+    </div>
+  </form>
+
+  <div class="micro-muted">
+    Policy: metadata-only · no downloads · no config writes · no model execution
+  </div>
+
+  <table class="models-table compact-table" id="hf-discovery-table" style="display: none;">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Local</th>
+        <th>Guess</th>
+        <th>Size</th>
+        <th>Repo</th>
+      </tr>
+    </thead>
+    <tbody id="hf-discovery-results"></tbody>
+  </table>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
       <h2>Local GGUF inventory</h2>
       <p class="muted">
         Read-only scan of approved local model roots. Downloads, deletes, and config edits are not enabled.
@@ -309,6 +373,123 @@
 </section>
 
 <script>
+  function appendTextCell(row, value, className = null) {
+    const cell = document.createElement("td");
+
+    if (className) {
+      cell.className = className;
+    }
+
+    cell.textContent = value || "";
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function appendBadgeCell(row, value, good = false) {
+    const cell = document.createElement("td");
+    const badge = document.createElement("span");
+
+    badge.className = good ? "status-pill status-good" : "status-pill status-warn";
+    badge.textContent = value;
+
+    cell.appendChild(badge);
+    row.appendChild(cell);
+    return cell;
+  }
+
+  const discoveryForm = document.getElementById("hf-discovery-form");
+  const discoveryButton = document.getElementById("hf-discovery-button");
+  const discoveryStatus = document.getElementById("hf-discovery-status");
+  const discoveryQuery = document.getElementById("hf-discovery-query");
+  const discoveryLimit = document.getElementById("hf-discovery-limit");
+  const discoveryTable = document.getElementById("hf-discovery-table");
+  const discoveryResults = document.getElementById("hf-discovery-results");
+
+  if (discoveryForm) {
+    discoveryForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const query = discoveryQuery.value.trim();
+      const limit = discoveryLimit.value || "10";
+
+      if (query.length < 2) {
+        discoveryStatus.textContent = "Query must be at least 2 characters.";
+        return;
+      }
+
+      discoveryButton.disabled = true;
+      discoveryButton.textContent = "Searching...";
+      discoveryStatus.textContent = "Searching Hugging Face metadata...";
+      discoveryResults.innerHTML = "";
+      discoveryTable.style.display = "none";
+
+      try {
+        const params = new URLSearchParams({ q: query, limit });
+        const response = await fetch(`/api/models/discover/huggingface?${params.toString()}`);
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Search failed with HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const candidates = payload.candidates || [];
+
+        discoveryStatus.textContent = `${payload.candidate_count || 0} GGUF candidates found. Showing ${candidates.length}.`;
+
+        for (const item of candidates) {
+          const row = document.createElement("tr");
+
+          const fileCell = document.createElement("td");
+          const fileStrong = document.createElement("strong");
+          fileStrong.textContent = item.basename || item.filename || "unknown";
+          fileCell.appendChild(fileStrong);
+
+          const fileMeta = document.createElement("div");
+          fileMeta.className = "micro-muted";
+          fileMeta.textContent = item.filename || "";
+          fileCell.appendChild(fileMeta);
+          row.appendChild(fileCell);
+
+          appendBadgeCell(row, item.local_match ? "LOCAL MATCH" : "REMOTE", Boolean(item.local_match));
+
+          const guessCell = document.createElement("td");
+          const family = document.createElement("div");
+          family.textContent = item.family_guess || "unknown family";
+          guessCell.appendChild(family);
+
+          const quant = document.createElement("div");
+          quant.className = "micro-muted";
+          quant.textContent = [item.quant_guess || "unknown quant", item.architecture_guess]
+            .filter(Boolean)
+            .join(" · ");
+          guessCell.appendChild(quant);
+          row.appendChild(guessCell);
+
+          appendTextCell(row, item.size_gib ? `${item.size_gib} GiB` : "unknown");
+
+          const repoCell = document.createElement("td");
+          const repoLink = document.createElement("a");
+          repoLink.href = item.repo_url;
+          repoLink.target = "_blank";
+          repoLink.rel = "noopener noreferrer";
+          repoLink.textContent = item.repo_id || "repo";
+          repoCell.appendChild(repoLink);
+          row.appendChild(repoCell);
+
+          discoveryResults.appendChild(row);
+        }
+
+        discoveryTable.style.display = candidates.length ? "table" : "none";
+      } catch (error) {
+        discoveryStatus.textContent = `Search failed: ${error}`;
+      } finally {
+        discoveryButton.disabled = false;
+        discoveryButton.textContent = "Search GGUF metadata";
+      }
+    });
+  }
+
   const scanButton = document.getElementById("scan-local-models-button");
 
   if (scanButton) {
