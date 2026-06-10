@@ -1,0 +1,23 @@
+# Monolith model profile examples.
+# Copy this to configs/models.yaml and edit paths for your machine.
+#
+# Do not commit your real configs/models.yaml.
+
+chat:
+  example-gemma-8k:
+    label: "Example Gemma 8k"
+    model_family: "Gemma"
+    model: "/path/to/your/model.gguf"
+    ctx_size: 8192
+    gpu_layers: -1
+    temperature: 0.2
+    launcher: "example-gemma-8k"
+
+  example-qwen-8k:
+    label: "Example Qwen 8k"
+    model_family: "Qwen"
+    model: "/path/to/your/model.gguf"
+    ctx_size: 8192
+    gpu_layers: -1
+    temperature: 0.2
+    launcher: "example-qwen-8k"

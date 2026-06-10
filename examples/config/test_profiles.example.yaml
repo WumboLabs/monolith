@@ -1,0 +1,17 @@
+# Monolith test profile examples.
+# Copy this to configs/test_profiles.yaml and edit locally.
+#
+# Do not commit your real configs/test_profiles.yaml.
+
+profiles:
+  conservative-default:
+    ctx_size: 8192
+    max_tokens: 800
+    temperature: 0.2
+    notes: "Safe default for local eval smoke tests."
+
+  long-context-check:
+    ctx_size: 32768
+    max_tokens: 1200
+    temperature: 0.2
+    notes: "Use only if the selected model/profile supports this context size."

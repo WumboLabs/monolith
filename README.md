@@ -55,3 +55,20 @@ Current version is tracked in:
 Current active version:
 
     alpha v0.10.0.3.2
+
+## Alpha status
+
+Monolith is currently alpha software.
+
+It is being developed as a local-first workbench for testing and evaluating local LLMs on real hardware. It is not yet packaged as a general-purpose application and may still contain workstation-specific assumptions.
+
+Before using it on another system, review:
+
+- ignored local config files
+- example model profiles
+- local llama.cpp paths
+- database initialization scripts
+- command execution boundaries
+- Agent Lab safety assumptions
+
+Do not commit local secrets, model files, logs, databases, or private screenshots.
