@@ -25,6 +25,8 @@ Hugging Face GGUF discovery prototype.
 ### Notes
 - File size may show as unknown when Hugging Face repo metadata does not expose size directly.
 - Exact remote file size resolution is deferred to the controlled downloader milestone.
+- Hugging Face discovery pagination establishes the preferred pattern for future dense tables.
+- Future UI/UX polish should convert dense Monolith tables to shared pagination with adjustable page size.
 - No downloader added.
 - No config editing added.
 - No model registration added.

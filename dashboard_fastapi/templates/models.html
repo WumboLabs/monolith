@@ -96,6 +96,30 @@
     </thead>
     <tbody id="hf-discovery-results"></tbody>
   </table>
+
+  <div class="form-actions" id="hf-discovery-pagination" style="display: none;">
+    <button type="button" class="button secondary-button" id="hf-discovery-prev">
+      Previous
+    </button>
+
+    <span class="micro-muted" id="hf-discovery-page-status">
+      Showing 0 results
+    </span>
+
+    <button type="button" class="button secondary-button" id="hf-discovery-next">
+      Next
+    </button>
+
+    <label class="micro-muted">
+      Results per page
+      <select id="hf-discovery-page-size">
+        <option value="10" selected>10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </label>
+  </div>
 </section>
 
 <section class="model-section">
@@ -404,6 +428,115 @@
   const discoveryLimit = document.getElementById("hf-discovery-limit");
   const discoveryTable = document.getElementById("hf-discovery-table");
   const discoveryResults = document.getElementById("hf-discovery-results");
+  const discoveryPagination = document.getElementById("hf-discovery-pagination");
+  const discoveryPrev = document.getElementById("hf-discovery-prev");
+  const discoveryNext = document.getElementById("hf-discovery-next");
+  const discoveryPageStatus = document.getElementById("hf-discovery-page-status");
+  const discoveryPageSize = document.getElementById("hf-discovery-page-size");
+
+  let hfDiscoveryCandidates = [];
+  let hfDiscoveryPage = 1;
+
+  function renderDiscoveryPage() {
+    if (!discoveryResults || !discoveryTable || !discoveryPagination) {
+      return;
+    }
+
+    discoveryResults.innerHTML = "";
+
+    const pageSize = Number(discoveryPageSize?.value || 10);
+    const total = hfDiscoveryCandidates.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    hfDiscoveryPage = Math.min(Math.max(1, hfDiscoveryPage), totalPages);
+
+    const startIndex = (hfDiscoveryPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, total);
+    const visibleCandidates = hfDiscoveryCandidates.slice(startIndex, endIndex);
+
+    for (const item of visibleCandidates) {
+      const row = document.createElement("tr");
+
+      const fileCell = document.createElement("td");
+      const fileStrong = document.createElement("strong");
+      fileStrong.textContent = item.basename || item.filename || "unknown";
+      fileCell.appendChild(fileStrong);
+
+      const fileMeta = document.createElement("div");
+      fileMeta.className = "micro-muted";
+      fileMeta.textContent = item.filename || "";
+      fileCell.appendChild(fileMeta);
+      row.appendChild(fileCell);
+
+      appendBadgeCell(row, item.local_match ? "LOCAL MATCH" : "REMOTE", Boolean(item.local_match));
+
+      const guessCell = document.createElement("td");
+      const family = document.createElement("div");
+      family.textContent = item.family_guess || "unknown family";
+      guessCell.appendChild(family);
+
+      const quant = document.createElement("div");
+      quant.className = "micro-muted";
+      quant.textContent = [item.quant_guess || "unknown quant", item.architecture_guess]
+        .filter(Boolean)
+        .join(" · ");
+      guessCell.appendChild(quant);
+      row.appendChild(guessCell);
+
+      appendTextCell(row, item.size_gib ? `${item.size_gib} GiB` : "unknown");
+
+      const repoCell = document.createElement("td");
+      const repoLink = document.createElement("a");
+      repoLink.href = item.repo_url;
+      repoLink.target = "_blank";
+      repoLink.rel = "noopener noreferrer";
+      repoLink.textContent = item.repo_id || "repo";
+      repoCell.appendChild(repoLink);
+      row.appendChild(repoCell);
+
+      discoveryResults.appendChild(row);
+    }
+
+    discoveryTable.style.display = total ? "table" : "none";
+    discoveryPagination.style.display = total ? "flex" : "none";
+
+    if (discoveryPageStatus) {
+      if (total) {
+        discoveryPageStatus.textContent = `Showing ${startIndex + 1}-${endIndex} of ${total} · Page ${hfDiscoveryPage} of ${totalPages}`;
+      } else {
+        discoveryPageStatus.textContent = "Showing 0 results";
+      }
+    }
+
+    if (discoveryPrev) {
+      discoveryPrev.disabled = hfDiscoveryPage <= 1;
+    }
+
+    if (discoveryNext) {
+      discoveryNext.disabled = hfDiscoveryPage >= totalPages;
+    }
+  }
+
+  if (discoveryPrev) {
+    discoveryPrev.addEventListener("click", () => {
+      hfDiscoveryPage -= 1;
+      renderDiscoveryPage();
+    });
+  }
+
+  if (discoveryNext) {
+    discoveryNext.addEventListener("click", () => {
+      hfDiscoveryPage += 1;
+      renderDiscoveryPage();
+    });
+  }
+
+  if (discoveryPageSize) {
+    discoveryPageSize.addEventListener("change", () => {
+      hfDiscoveryPage = 1;
+      renderDiscoveryPage();
+    });
+  }
 
   if (discoveryForm) {
     discoveryForm.addEventListener("submit", async (event) => {
@@ -422,6 +555,9 @@
       discoveryStatus.textContent = "Searching Hugging Face metadata...";
       discoveryResults.innerHTML = "";
       discoveryTable.style.display = "none";
+      discoveryPagination.style.display = "none";
+      hfDiscoveryCandidates = [];
+      hfDiscoveryPage = 1;
 
       try {
         const params = new URLSearchParams({ q: query, limit });
@@ -433,54 +569,12 @@
         }
 
         const payload = await response.json();
-        const candidates = payload.candidates || [];
+        hfDiscoveryCandidates = payload.candidates || [];
+        hfDiscoveryPage = 1;
 
-        discoveryStatus.textContent = `${payload.candidate_count || 0} GGUF candidates found. Showing ${candidates.length}.`;
+        discoveryStatus.textContent = `${payload.candidate_count || 0} GGUF candidates found.`;
 
-        for (const item of candidates) {
-          const row = document.createElement("tr");
-
-          const fileCell = document.createElement("td");
-          const fileStrong = document.createElement("strong");
-          fileStrong.textContent = item.basename || item.filename || "unknown";
-          fileCell.appendChild(fileStrong);
-
-          const fileMeta = document.createElement("div");
-          fileMeta.className = "micro-muted";
-          fileMeta.textContent = item.filename || "";
-          fileCell.appendChild(fileMeta);
-          row.appendChild(fileCell);
-
-          appendBadgeCell(row, item.local_match ? "LOCAL MATCH" : "REMOTE", Boolean(item.local_match));
-
-          const guessCell = document.createElement("td");
-          const family = document.createElement("div");
-          family.textContent = item.family_guess || "unknown family";
-          guessCell.appendChild(family);
-
-          const quant = document.createElement("div");
-          quant.className = "micro-muted";
-          quant.textContent = [item.quant_guess || "unknown quant", item.architecture_guess]
-            .filter(Boolean)
-            .join(" · ");
-          guessCell.appendChild(quant);
-          row.appendChild(guessCell);
-
-          appendTextCell(row, item.size_gib ? `${item.size_gib} GiB` : "unknown");
-
-          const repoCell = document.createElement("td");
-          const repoLink = document.createElement("a");
-          repoLink.href = item.repo_url;
-          repoLink.target = "_blank";
-          repoLink.rel = "noopener noreferrer";
-          repoLink.textContent = item.repo_id || "repo";
-          repoCell.appendChild(repoLink);
-          row.appendChild(repoCell);
-
-          discoveryResults.appendChild(row);
-        }
-
-        discoveryTable.style.display = candidates.length ? "table" : "none";
+        renderDiscoveryPage();
       } catch (error) {
         discoveryStatus.textContent = `Search failed: ${error}`;
       } finally {
