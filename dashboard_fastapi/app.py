@@ -331,6 +331,311 @@ def load_models_for_page() -> list[dict[str, Any]]:
     return rows
 
 
+def model_registry_tables_exist() -> bool:
+    if not DB_PATH.exists():
+        return False
+
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name = 'local_model_files'
+            """
+        ).fetchall()
+
+    return len(rows) == 1
+
+
+def approved_model_inventory_roots() -> list[Path]:
+    return [
+        Path.home() / "Projects/local-llm/models",
+        Path.home() / "Projects/local-llm/llama.cpp-models",
+    ]
+
+
+def is_inventory_model_file(path: Path) -> bool:
+    if path.suffix.lower() != ".gguf":
+        return False
+
+    name = path.name.lower()
+
+    if name.startswith("ggml-vocab-"):
+        return False
+
+    if name.startswith("mmproj-") or "mmproj" in name:
+        return False
+
+    try:
+        size_bytes = path.stat().st_size
+    except OSError:
+        return False
+
+    # Avoid tokenizer/vocab fixtures and other tiny GGUF support files.
+    if size_bytes < 100 * 1024 * 1024:
+        return False
+
+    return True
+
+
+def guess_model_family_from_filename(filename: str) -> str | None:
+    name = filename.lower()
+
+    family_markers = [
+        ("qwen", "Qwen"),
+        ("gemma", "Gemma"),
+        ("llama", "Llama"),
+        ("mistral", "Mistral"),
+        ("mixtral", "Mixtral"),
+        ("phi", "Phi"),
+        ("deepseek", "DeepSeek"),
+        ("nemotron", "Nemotron"),
+        ("lfm", "LFM"),
+        ("falcon", "Falcon"),
+        ("mellum", "Mellum"),
+    ]
+
+    for marker, label in family_markers:
+        if marker in name:
+            return label
+
+    return None
+
+
+def guess_architecture_from_filename(filename: str) -> str | None:
+    name = filename.lower()
+
+    if "a3b" in name or "a4b" in name or "moe" in name:
+        return "MoE"
+
+    if "instruct" in name or "-it-" in name or name.endswith("-it.gguf"):
+        return "Instruct"
+
+    if "reasoning" in name:
+        return "Reasoning"
+
+    return None
+
+
+def guess_quant_from_filename(filename: str) -> str | None:
+    stem = Path(filename).stem
+    patterns = [
+        r"(UD-[A-Z0-9_]+)",
+        r"(IQ[0-9]_[A-Z0-9_]+)",
+        r"(Q[0-9]_[A-Z0-9_]+)",
+        r"(Q[0-9]_K_[A-Z])",
+        r"(Q[0-9]_K)",
+        r"(Q[0-9])",
+        r"(F16)",
+        r"(BF16)",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, stem, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+
+    return None
+
+
+def registered_model_usage_by_path() -> dict[str, dict[str, Any]]:
+    registry = load_model_registry()
+    models = registry.get("models", {}) or {}
+    chat_profiles = registry.get("chat_profiles", {}) or {}
+
+    usage: dict[str, dict[str, Any]] = {}
+
+    for key, model in models.items():
+        model_path = (model or {}).get("model") or (model or {}).get("gguf_path")
+        if not model_path:
+            continue
+
+        resolved = str(Path(model_path).expanduser())
+        usage.setdefault(
+            resolved,
+            {
+                "registered_model_key": None,
+                "registered_profile_keys": [],
+            },
+        )
+        usage[resolved]["registered_model_key"] = key
+
+    for key, profile in chat_profiles.items():
+        model_path = (profile or {}).get("model") or (profile or {}).get("gguf_path")
+        if not model_path:
+            continue
+
+        resolved = str(Path(model_path).expanduser())
+        usage.setdefault(
+            resolved,
+            {
+                "registered_model_key": None,
+                "registered_profile_keys": [],
+            },
+        )
+        usage[resolved]["registered_profile_keys"].append(key)
+
+    return usage
+
+
+def scan_local_model_inventory() -> dict[str, Any]:
+    if not model_registry_tables_exist():
+        raise HTTPException(status_code=500, detail="Model Registry tables not found. Run migration first.")
+
+    roots = approved_model_inventory_roots()
+    usage = registered_model_usage_by_path()
+
+    discovered: list[dict[str, Any]] = []
+
+    for root in roots:
+        expanded_root = root.expanduser()
+
+        if not expanded_root.exists() or not expanded_root.is_dir():
+            continue
+
+        for path in sorted(expanded_root.rglob("*.gguf")):
+            if not is_inventory_model_file(path):
+                continue
+
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+
+            local_path = str(path.expanduser())
+            registered = usage.get(local_path) or {}
+            profile_keys = sorted(registered.get("registered_profile_keys") or [])
+
+            discovered.append(
+                {
+                    "scan_root": str(expanded_root),
+                    "local_path": local_path,
+                    "filename": path.name,
+                    "size_bytes": int(stat.st_size),
+                    "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+                    "family_guess": guess_model_family_from_filename(path.name),
+                    "quant_guess": guess_quant_from_filename(path.name),
+                    "architecture_guess": guess_architecture_from_filename(path.name),
+                    "registered_model_key": registered.get("registered_model_key"),
+                    "registered_profile_keys_json": json_dumps_compact(profile_keys),
+                    "status": "registered" if registered else "discovered",
+                    "notes": None,
+                }
+            )
+
+    now = current_timestamp_local()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        for item in discovered:
+            conn.execute(
+                """
+                INSERT INTO local_model_files (
+                    created_at,
+                    updated_at,
+                    scan_root,
+                    local_path,
+                    filename,
+                    size_bytes,
+                    modified_at,
+                    family_guess,
+                    quant_guess,
+                    architecture_guess,
+                    registered_model_key,
+                    registered_profile_keys_json,
+                    status,
+                    notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(local_path) DO UPDATE SET
+                    updated_at = excluded.updated_at,
+                    scan_root = excluded.scan_root,
+                    filename = excluded.filename,
+                    size_bytes = excluded.size_bytes,
+                    modified_at = excluded.modified_at,
+                    family_guess = excluded.family_guess,
+                    quant_guess = excluded.quant_guess,
+                    architecture_guess = excluded.architecture_guess,
+                    registered_model_key = excluded.registered_model_key,
+                    registered_profile_keys_json = excluded.registered_profile_keys_json,
+                    status = excluded.status,
+                    notes = excluded.notes
+                """,
+                (
+                    now,
+                    now,
+                    item["scan_root"],
+                    item["local_path"],
+                    item["filename"],
+                    item["size_bytes"],
+                    item["modified_at"],
+                    item["family_guess"],
+                    item["quant_guess"],
+                    item["architecture_guess"],
+                    item["registered_model_key"],
+                    item["registered_profile_keys_json"],
+                    item["status"],
+                    item["notes"],
+                ),
+            )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "scanned_roots": [str(root.expanduser()) for root in roots],
+        "discovered_count": len(discovered),
+    }
+
+
+def load_local_model_inventory(limit: int = 200) -> dict[str, Any]:
+    empty = {
+        "available": False,
+        "rows": [],
+        "count": 0,
+        "registered_count": 0,
+        "unregistered_count": 0,
+        "total_size_bytes": 0,
+        "approved_roots": [str(root.expanduser()) for root in approved_model_inventory_roots()],
+    }
+
+    if not model_registry_tables_exist():
+        return empty
+
+    rows = db_rows(
+        """
+        SELECT *
+        FROM local_model_files
+        ORDER BY size_bytes DESC, filename ASC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+    for row in rows:
+        try:
+            row["registered_profile_keys"] = __import__("json").loads(row.get("registered_profile_keys_json") or "[]")
+        except Exception:
+            row["registered_profile_keys"] = []
+
+        size_bytes = row.get("size_bytes") or 0
+        row["size_gib"] = round(float(size_bytes) / (1024 ** 3), 2)
+
+    registered_count = sum(1 for row in rows if row.get("status") == "registered")
+    total_size_bytes = sum(int(row.get("size_bytes") or 0) for row in rows)
+
+    return {
+        "available": True,
+        "rows": rows,
+        "count": len(rows),
+        "registered_count": registered_count,
+        "unregistered_count": len(rows) - registered_count,
+        "total_size_bytes": total_size_bytes,
+        "total_size_gib": round(float(total_size_bytes) / (1024 ** 3), 2),
+        "approved_roots": [str(root.expanduser()) for root in approved_model_inventory_roots()],
+    }
+
+
 LLAMA_COMPLETION = os.environ.get(
     "MONOLITH_LLAMA_COMPLETION",
     str(Path.home() / "Projects/local-llm/llama.cpp/build-cuda-sm120/bin/llama-completion"),
@@ -4276,11 +4581,17 @@ def eval_prompt_detail(request: Request, category: str, filename: str):
     )
 
 
+@app.post("/api/models/local-inventory/scan")
+def api_models_local_inventory_scan():
+    return scan_local_model_inventory()
+
+
 @app.get("/models", response_class=HTMLResponse)
 def models(request: Request):
     rows = load_models_for_page()
     chat_rows = [row for row in rows if row.get("kind") == "chat_profile"]
     catalog_rows = [row for row in rows if row.get("kind") != "chat_profile"]
+    local_inventory = load_local_model_inventory()
 
     found_count = sum(1 for row in rows if row.get("path_status", {}).get("exists"))
     missing_count = sum(
@@ -4298,6 +4609,7 @@ def models(request: Request):
             "rows": rows,
             "chat_rows": chat_rows,
             "catalog_rows": catalog_rows,
+            "local_inventory": local_inventory,
             "found_count": found_count,
             "missing_count": missing_count,
             "active_count": active_count,

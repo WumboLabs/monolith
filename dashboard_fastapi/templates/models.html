@@ -37,6 +37,121 @@
 <section class="model-section">
   <div class="section-heading-row">
     <div>
+      <h2>Local GGUF inventory</h2>
+      <p class="muted">
+        Read-only scan of approved local model roots. Downloads, deletes, and config edits are not enabled.
+      </p>
+    </div>
+
+    <button type="button" class="button" id="scan-local-models-button">
+      Scan local models
+    </button>
+  </div>
+
+  {% if local_inventory.available %}
+    <section class="cards">
+      <div class="card">
+        <div class="metric-label">Local GGUFs</div>
+        <div class="metric-value">{{ local_inventory.count }}</div>
+      </div>
+
+      <div class="card">
+        <div class="metric-label">Registered</div>
+        <div class="metric-value">{{ local_inventory.registered_count }}</div>
+      </div>
+
+      <div class="card">
+        <div class="metric-label">Discovered</div>
+        <div class="metric-value">{{ local_inventory.unregistered_count }}</div>
+      </div>
+
+      <div class="card">
+        <div class="metric-label">Total size</div>
+        <div class="metric-value">{{ local_inventory.total_size_gib or 0 }} GiB</div>
+      </div>
+    </section>
+
+    <div class="micro-muted">
+      Approved roots:
+      {% for root in local_inventory.approved_roots %}
+        <code>{{ root }}</code>{% if not loop.last %} · {% endif %}
+      {% endfor %}
+    </div>
+
+    <table class="models-table compact-table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Status</th>
+          <th>Guess</th>
+          <th>Size</th>
+          <th>Registered usage</th>
+          <th>Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in local_inventory.rows %}
+        <tr>
+          <td>
+            <strong>{{ row.filename }}</strong>
+            <div class="micro-muted">{{ row.modified_at or "unknown mtime" }}</div>
+          </td>
+
+          <td>
+            {% if row.status == "registered" %}
+              <span class="status-pill status-good">REGISTERED</span>
+            {% else %}
+              <span class="status-pill status-warn">DISCOVERED</span>
+            {% endif %}
+          </td>
+
+          <td>
+            <div>{{ row.family_guess or "unknown family" }}</div>
+            <div class="micro-muted">
+              {{ row.quant_guess or "unknown quant" }}
+              {% if row.architecture_guess %}
+                · {{ row.architecture_guess }}
+              {% endif %}
+            </div>
+          </td>
+
+          <td>{{ row.size_gib }} GiB</td>
+
+          <td>
+            {% if row.registered_model_key %}
+              <div><code>{{ row.registered_model_key }}</code></div>
+            {% endif %}
+
+            {% if row.registered_profile_keys %}
+              <div class="model-tags">
+                {% for profile_key in row.registered_profile_keys %}
+                  <span class="status-pill">{{ profile_key }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if not row.registered_model_key and not row.registered_profile_keys %}
+              <span class="muted">not registered</span>
+            {% endif %}
+          </td>
+
+          <td>
+            <div class="file-path model-path-clamp" title="{{ row.local_path }}">{{ row.local_path }}</div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">
+      Local model inventory table is not available. Run <code>scripts/migrate_model_registry.py</code>.
+    </p>
+  {% endif %}
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
       <h2>Chat profiles</h2>
       <p class="muted">Runnable profiles exposed in the Chat dropdown.</p>
     </div>
@@ -192,5 +307,33 @@
     </tbody>
   </table>
 </section>
+
+<script>
+  const scanButton = document.getElementById("scan-local-models-button");
+
+  if (scanButton) {
+    scanButton.addEventListener("click", async () => {
+      scanButton.disabled = true;
+      scanButton.textContent = "Scanning...";
+
+      try {
+        const response = await fetch("/api/models/local-inventory/scan", {
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Scan failed with HTTP ${response.status}`);
+        }
+
+        window.location.reload();
+      } catch (error) {
+        alert(`Local model scan failed: ${error}`);
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan local models";
+      }
+    });
+  }
+</script>
 
 {% endblock %}

@@ -1,3 +1,36 @@
+# alpha v0.11.0 — Model Registry local inventory
+
+- Added additive Model Registry migration script.
+- Added `local_model_files` inventory table for local GGUF tracking.
+- Added approved-root local model scanner for:
+  - `~/Projects/local-llm/models`
+  - `~/Projects/local-llm/llama.cpp-models`
+- Added filtering to exclude tiny vocab/support GGUFs and `mmproj` files from the first inventory view.
+- Added filename-based family, quant, and architecture guesses.
+- Added registration detection against `configs/models.yaml` and `chat_profiles`.
+- Added controlled `POST /api/models/local-inventory/scan` endpoint.
+- Added Local GGUF Inventory section to `/models`.
+- Added scan button for refreshing local inventory from the UI.
+
+## Validation
+
+- Ran migration successfully.
+- Confirmed `local_model_files` table exists.
+- Scanned approved roots successfully.
+- Confirmed 14 real local GGUF model files discovered.
+- Confirmed 8 registered and 6 discovered/unregistered models.
+- Confirmed `/models` page renders Local GGUF inventory.
+- Confirmed scan API works from curl.
+
+## Notes
+
+- No remote search added.
+- No downloader added.
+- No config editing added.
+- No model deletion added.
+- No arbitrary path scanning added.
+- GPU tuning remains deferred/read-only future work.
+
 # alpha v0.10.2 — Agent Backend Eval single-run launcher
 
 - Added controlled `POST /api/eval/agent-backend/run-single` endpoint.
