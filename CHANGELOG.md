@@ -1,5 +1,24 @@
 # Monolith Changelog
 
+## alpha v0.11.2 - 2026-06-11
+
+### Added
+- Added controlled model downloader planning schema with the `model_download_jobs` table.
+- Added `scripts/migrate_model_downloader.py` as an idempotent SQLite migration.
+- Added metadata-only download planning APIs:
+  - `GET /api/models/downloads`
+  - `POST /api/models/downloads/plan`
+- Added approved Hugging Face destination path planning under `~/Projects/local-llm/models/huggingface`.
+- Added path safety checks for repository-derived directories and GGUF filenames.
+
+### Safety
+- Downloader remains planning-only in this milestone.
+- No model files are downloaded yet.
+- No arbitrary URL textbox is exposed.
+- No model config is edited automatically.
+- No model execution is triggered after planning.
+- `mmproj` files are explicitly excluded from model download planning.
+
 ## alpha v0.11.1 - 2026-06-10
 
 Hugging Face GGUF discovery prototype.

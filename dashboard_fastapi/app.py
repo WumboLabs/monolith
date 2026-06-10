@@ -50,7 +50,7 @@ EVAL_TASK_LOCK = threading.Lock()
 
 APP_NAME = "Monolith"
 APP_SUBTITLE = "Local AI Workbench"
-APP_VERSION = "alpha v0.11.1"
+APP_VERSION = "alpha v0.11.2"
 
 app = FastAPI(title="Monolith")
 
@@ -4780,6 +4780,268 @@ def eval_prompt_detail(request: Request, category: str, filename: str):
             "prompt": prompt,
         },
     )
+
+
+class ModelDownloadPlanRequest(BaseModel):
+    source_repo_id: str
+    source_filename: str
+    size_bytes: int | None = None
+    local_match: bool = False
+    overwrite_existing: bool = False
+    notes: str | None = None
+
+
+def model_downloader_tables_exist() -> bool:
+    if not DB_PATH.exists():
+        return False
+
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name = 'model_download_jobs'
+            """
+        ).fetchall()
+
+    return len(rows) == 1
+
+
+def approved_model_download_root() -> Path:
+    return Path.home() / "Projects/local-llm/models/huggingface"
+
+
+def safe_download_repo_dir(repo_id: str) -> str:
+    safe_repo_id = safe_huggingface_repo_id(repo_id)
+
+    parts = safe_repo_id.split("/")
+    if len(parts) != 2:
+        raise HTTPException(status_code=400, detail="Expected Hugging Face repo id in owner/name form.")
+
+    owner, repo = parts
+    safe = f"{owner}--{repo}"
+
+    if ".." in safe or "/" in safe or safe.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid repository-derived destination directory.")
+
+    return safe
+
+
+def safe_source_gguf_filename(source_filename: str) -> str:
+    source_filename = (source_filename or "").strip()
+
+    if not source_filename:
+        raise HTTPException(status_code=400, detail="Source filename is required.")
+
+    if source_filename.startswith("/") or ".." in Path(source_filename).parts:
+        raise HTTPException(status_code=400, detail="Invalid source filename.")
+
+    basename = Path(source_filename).name
+
+    if not basename.lower().endswith(".gguf"):
+        raise HTTPException(status_code=400, detail="Only GGUF files can be planned for download.")
+
+    lowered = basename.lower()
+    if lowered.startswith("mmproj-") or "mmproj" in lowered:
+        raise HTTPException(status_code=400, detail="mmproj files are excluded from model download planning.")
+
+    if basename in {"", ".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid source filename.")
+
+    return basename
+
+
+def planned_download_destination(repo_id: str, source_filename: str) -> dict[str, str]:
+    root = approved_model_download_root().expanduser()
+    repo_dir = safe_download_repo_dir(repo_id)
+    filename = safe_source_gguf_filename(source_filename)
+
+    destination_dir = root / repo_dir
+    destination_path = destination_dir / filename
+
+    root_resolved = root.resolve(strict=False)
+    destination_resolved = destination_path.resolve(strict=False)
+
+    try:
+        destination_resolved.relative_to(root_resolved)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Planned destination escapes approved download root.") from exc
+
+    return {
+        "destination_root": str(root_resolved),
+        "destination_dir": str(destination_dir.resolve(strict=False)),
+        "destination_path": str(destination_resolved),
+        "filename": filename,
+    }
+
+
+def huggingface_resolve_url(repo_id: str, source_filename: str) -> str:
+    import urllib.parse
+
+    safe_repo_id = safe_huggingface_repo_id(repo_id)
+    safe_source_filename = source_filename.strip()
+
+    if safe_source_filename.startswith("/") or ".." in Path(safe_source_filename).parts:
+        raise HTTPException(status_code=400, detail="Invalid source filename.")
+
+    encoded_filename = urllib.parse.quote(safe_source_filename, safe="/")
+    return f"https://huggingface.co/{safe_repo_id}/resolve/main/{encoded_filename}"
+
+
+def load_model_download_jobs(limit: int = 50) -> list[dict[str, Any]]:
+    if not model_downloader_tables_exist():
+        return []
+
+    rows = db_rows(
+        """
+        SELECT *
+        FROM model_download_jobs
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (max(1, min(int(limit or 50), 200)),),
+    )
+
+    for row in rows:
+        size_bytes = row.get("size_bytes") or row.get("expected_size_bytes")
+        row["size_gib"] = round(float(size_bytes) / (1024 ** 3), 2) if size_bytes else None
+        row["destination_exists"] = Path(row["destination_path"]).expanduser().exists()
+
+    return rows
+
+
+def plan_model_download_job(payload: ModelDownloadPlanRequest) -> dict[str, Any]:
+    if not model_downloader_tables_exist():
+        raise HTTPException(status_code=500, detail="Model downloader tables not found. Run migration first.")
+
+    repo_id = safe_huggingface_repo_id(payload.source_repo_id)
+    source_filename = payload.source_filename.strip()
+    destination = planned_download_destination(repo_id, source_filename)
+    source_url = huggingface_resolve_url(repo_id, source_filename)
+    filename = destination["filename"]
+
+    destination_path = Path(destination["destination_path"])
+    destination_exists = destination_path.exists()
+
+    if destination_exists and not payload.overwrite_existing:
+        raise HTTPException(
+            status_code=409,
+            detail="Destination file already exists. Refusing to plan overwrite.",
+        )
+
+    existing = db_one(
+        """
+        SELECT *
+        FROM model_download_jobs
+        WHERE destination_path = ?
+        """,
+        (destination["destination_path"],),
+    )
+
+    if existing and not payload.overwrite_existing:
+        raise HTTPException(
+            status_code=409,
+            detail="A download job already exists for this destination path.",
+        )
+
+    now = current_timestamp_local()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO model_download_jobs (
+                created_at,
+                updated_at,
+                status,
+                source_type,
+                source_repo_id,
+                source_filename,
+                source_url,
+                destination_root,
+                destination_dir,
+                destination_path,
+                filename,
+                size_bytes,
+                expected_size_bytes,
+                family_guess,
+                quant_guess,
+                architecture_guess,
+                local_match,
+                overwrite_existing,
+                bytes_downloaded,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                now,
+                now,
+                "planned",
+                "huggingface",
+                repo_id,
+                source_filename,
+                source_url,
+                destination["destination_root"],
+                destination["destination_dir"],
+                destination["destination_path"],
+                filename,
+                payload.size_bytes,
+                payload.size_bytes,
+                guess_model_family_from_filename(filename),
+                guess_quant_from_filename(filename),
+                guess_architecture_from_filename(filename),
+                1 if payload.local_match or destination_exists else 0,
+                1 if payload.overwrite_existing else 0,
+                0,
+                payload.notes,
+            ),
+        )
+
+        conn.commit()
+        job_id = cursor.lastrowid
+
+    row = db_one(
+        """
+        SELECT *
+        FROM model_download_jobs
+        WHERE id = ?
+        """,
+        (job_id,),
+    )
+
+    if not row:
+        raise HTTPException(status_code=500, detail="Planned job was not found after insert.")
+
+    row["destination_exists"] = destination_exists
+    row["download_enabled"] = False
+    row["policy"] = {
+        "planning_only": True,
+        "downloads_enabled": False,
+        "config_edits_enabled": False,
+        "model_execution_enabled": False,
+        "approved_download_root": str(approved_model_download_root().expanduser()),
+    }
+
+    return row
+
+
+@app.get("/api/models/downloads")
+def api_models_downloads(limit: int = 50):
+    return {
+        "ok": True,
+        "downloads_enabled": False,
+        "approved_download_root": str(approved_model_download_root().expanduser()),
+        "jobs": load_model_download_jobs(limit),
+    }
+
+
+@app.post("/api/models/downloads/plan")
+def api_models_downloads_plan(payload: ModelDownloadPlanRequest):
+    return {
+        "ok": True,
+        "job": plan_model_download_job(payload),
+    }
 
 
 @app.get("/api/models/discover/huggingface")
