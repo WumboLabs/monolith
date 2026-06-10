@@ -1,6 +1,11 @@
-# alpha v0.11.0 — Model Registry local inventory
+# Monolith Changelog
 
-- Added additive Model Registry migration script.
+## alpha v0.11.0 - 2026-06-10
+
+Model Registry local inventory.
+
+### Added
+- Added additive Model Registry migration script: `scripts/migrate_model_registry.py`.
 - Added `local_model_files` inventory table for local GGUF tracking.
 - Added approved-root local model scanner for:
   - `~/Projects/local-llm/models`
@@ -12,8 +17,7 @@
 - Added Local GGUF Inventory section to `/models`.
 - Added scan button for refreshing local inventory from the UI.
 
-## Validation
-
+### Validation
 - Ran migration successfully.
 - Confirmed `local_model_files` table exists.
 - Scanned approved roots successfully.
@@ -22,8 +26,7 @@
 - Confirmed `/models` page renders Local GGUF inventory.
 - Confirmed scan API works from curl.
 
-## Notes
-
+### Notes
 - No remote search added.
 - No downloader added.
 - No config editing added.
@@ -31,8 +34,12 @@
 - No arbitrary path scanning added.
 - GPU tuning remains deferred/read-only future work.
 
-# alpha v0.10.2 — Agent Backend Eval single-run launcher
 
+## alpha v0.10.2 - 2026-06-10
+
+Agent Backend Eval single-run launcher.
+
+### Added
 - Added controlled `POST /api/eval/agent-backend/run-single` endpoint.
 - Added active-profile-only Agent Backend Eval single-run validation.
 - Added approved `agent-eval-v1` prompt validation with metadata prompt exclusion.
@@ -44,28 +51,29 @@
 - Updated Testbench navigation to use the Agent Backend Eval route.
 - Corrected public model config example to match current `models` / `chat_profiles` app behavior.
 
-## Validation
-
+### Validation
 - Verified route registration for `/api/eval/agent-backend/run-single`.
 - Ran Qwen2.5 3B Q6 8k smoke test against `honesty/no-fake-tool-output.md`.
-- Confirmed DB persistence for one completed run/result pair.
-- Confirmed parsed metrics: prompt eval 4201.27 t/s, generation 191.95 t/s, peak VRAM 3333 MiB.
+- Confirmed DB persistence for completed run/result pairs.
+- Confirmed parsed metrics from validation run: prompt eval 4201.27 t/s, generation 191.95 t/s, peak VRAM 3333 MiB.
 
-## Notes
-
+### Notes
 - Uses existing `hermes_eval_*` table names for compatibility.
 - No automatic scoring added.
 - No arbitrary shell, model path, or prompt-root execution added.
 - UI launch form and result detail page are deferred.
 
-# alpha v0.10.1 — Public repository polish
 
+## alpha v0.10.1 - 2026-06-10
+
+Public repository polish.
+
+### Changed
 - Repositioned README around Monolith as a Local AI Workbench.
 - Replaced WumboJetsII-specific README framing with public-facing project language.
 - Clarified alpha status, local configuration expectations, security posture, and license status.
 - Standardized project version to alpha v0.10.1 across README, VERSION, and app metadata.
 
-# Monolith Changelog
 
 ## alpha v0.09.2 - 2026-06-09
 
@@ -355,7 +363,7 @@ Point release for Local Eval abort control.
 - Abort state is task-state level for now, not persistent historical run logging.
 
 
-# Monolith Changelog\n\n## alpha v0.07.1 - 2026-06-06
+## alpha v0.07.1 - 2026-06-06
 
 Point release for Local Eval completion redirect / auto-refresh polish.
 
@@ -370,7 +378,7 @@ Point release for Local Eval completion redirect / auto-refresh polish.
 - No database schema changes.
 - No arbitrary execution behavior added.
 
-\n# Monolith Changelog
+
 
 ## alpha v0.07 - 2026-06-06
 
