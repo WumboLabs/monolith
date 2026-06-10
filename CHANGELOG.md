@@ -1,3 +1,30 @@
+# alpha v0.10.2 — Agent Backend Eval single-run launcher
+
+- Added controlled `POST /api/eval/agent-backend/run-single` endpoint.
+- Added active-profile-only Agent Backend Eval single-run validation.
+- Added approved `agent-eval-v1` prompt validation with metadata prompt exclusion.
+- Added bounded context, max-token, and temperature handling for single eval runs.
+- Added llama.cpp execution through existing controlled Monolith runner helpers.
+- Added raw output, cleaned output, runtime status, VRAM, and speed metric persistence to `hermes_eval_runs` / `hermes_eval_results`.
+- Added current llama.cpp `common_perf_print` parser support for prompt eval and generation throughput.
+- Added `/eval/agent-backend` and `/api/eval/agent-backend/options` route aliases while preserving existing `/eval/hermes` compatibility routes.
+- Updated Testbench navigation to use the Agent Backend Eval route.
+- Corrected public model config example to match current `models` / `chat_profiles` app behavior.
+
+## Validation
+
+- Verified route registration for `/api/eval/agent-backend/run-single`.
+- Ran Qwen2.5 3B Q6 8k smoke test against `honesty/no-fake-tool-output.md`.
+- Confirmed DB persistence for one completed run/result pair.
+- Confirmed parsed metrics: prompt eval 4201.27 t/s, generation 191.95 t/s, peak VRAM 3333 MiB.
+
+## Notes
+
+- Uses existing `hermes_eval_*` table names for compatibility.
+- No automatic scoring added.
+- No arbitrary shell, model path, or prompt-root execution added.
+- UI launch form and result detail page are deferred.
+
 # alpha v0.10.1 — Public repository polish
 
 - Repositioned README around Monolith as a Local AI Workbench.

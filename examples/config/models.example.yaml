@@ -3,21 +3,34 @@
 #
 # Do not commit your real configs/models.yaml.
 
-chat:
+models:
+  example-gemma:
+    label: "Example Gemma"
+    family: "Gemma"
+    model: "/path/to/your/gemma-model.gguf"
+
+  example-qwen:
+    label: "Example Qwen"
+    family: "Qwen"
+    model: "/path/to/your/qwen-model.gguf"
+
+chat_profiles:
   example-gemma-8k:
     label: "Example Gemma 8k"
     model_family: "Gemma"
-    model: "/path/to/your/model.gguf"
+    model: "/path/to/your/gemma-model.gguf"
     ctx_size: 8192
     gpu_layers: -1
     temperature: 0.2
     launcher: "example-gemma-8k"
+    active: true
 
   example-qwen-8k:
     label: "Example Qwen 8k"
     model_family: "Qwen"
-    model: "/path/to/your/model.gguf"
+    model: "/path/to/your/qwen-model.gguf"
     ctx_size: 8192
     gpu_layers: -1
     temperature: 0.2
     launcher: "example-qwen-8k"
+    active: true

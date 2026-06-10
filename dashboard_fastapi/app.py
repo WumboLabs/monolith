@@ -375,6 +375,14 @@ class ContextScalingRunRequest(BaseModel):
     temperature: float = 0.2
 
 
+class AgentBackendEvalSingleRunRequest(BaseModel):
+    profile: str
+    prompt: str
+    ctx_size: int = 8192
+    max_tokens: int = 800
+    temperature: float = 0.2
+
+
 class ChatRequest(BaseModel):
     profile: str
     prompt: str
@@ -553,29 +561,35 @@ def clean_model_response(text: str) -> str:
 def parse_llama_perf(stderr_text: str) -> dict[str, Any]:
     """
     Extract llama.cpp speed stats if present.
-    Returns None values if the binary output format does not include stats.
+
+    Supports both older compact tok/s output and newer common_perf_print lines
+    such as:
+      prompt eval time = ... ( ..., 3912.60 tokens per second)
+      eval time        = ... ( ..., 188.80 tokens per second)
     """
     prompt_tps = None
     generation_tps = None
 
     prompt_patterns = [
-        r"prompt eval time\s*=.*?/\s*([0-9.]+)\s*tokens per second",
+        r"^.*prompt eval time\s*=.*?\(.*?,\s*([0-9.]+)\s*tokens per second\)",
+        r"prompt eval time\s*=.*?([0-9.]+)\s*tokens per second",
         r"prompt eval.*?([0-9.]+)\s*tok/s",
     ]
 
     generation_patterns = [
-        r"eval time\s*=.*?/\s*([0-9.]+)\s*tokens per second",
+        r"^.*(?<!prompt )eval time\s*=.*?\(.*?,\s*([0-9.]+)\s*tokens per second\)",
+        r"(?<!prompt )eval time\s*=.*?([0-9.]+)\s*tokens per second",
         r"generation.*?([0-9.]+)\s*tok/s",
     ]
 
     for pattern in prompt_patterns:
-        match = re.search(pattern, stderr_text, flags=re.IGNORECASE | re.DOTALL)
+        match = re.search(pattern, stderr_text, flags=re.IGNORECASE | re.MULTILINE)
         if match:
             prompt_tps = float(match.group(1))
             break
 
     for pattern in generation_patterns:
-        matches = re.findall(pattern, stderr_text, flags=re.IGNORECASE | re.DOTALL)
+        matches = re.findall(pattern, stderr_text, flags=re.IGNORECASE | re.MULTILINE)
         if matches:
             generation_tps = float(matches[-1])
             break
@@ -3369,8 +3383,14 @@ def hermes_eval_prompt_options() -> list[dict[str, str]]:
 
     options: list[dict[str, str]] = []
 
+    excluded = {"README.md", "scoring/rubric.md"}
+
     for path in sorted(HERMES_PROMPT_ROOT.rglob("*.md")):
         rel_path = path.relative_to(HERMES_PROMPT_ROOT).as_posix()
+
+        if rel_path in excluded:
+            continue
+
         parts = rel_path.split("/", 1)
         category = parts[0] if parts else "uncategorized"
         name = path.stem.replace("-", " ").title()
@@ -3518,11 +3538,320 @@ def hermes_eval_options_payload() -> dict[str, object]:
     }
 
 
+def normalize_agent_eval_prompt_path(value: str) -> str:
+    candidate = (value or "").strip().lstrip("/")
+
+    if not candidate:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    candidate_path = Path(candidate)
+
+    if candidate_path.is_absolute() or ".." in candidate_path.parts:
+        raise HTTPException(status_code=400, detail="Prompt path is not allowed")
+
+    normalized = candidate_path.as_posix()
+
+    if normalized in {"README.md", "scoring/rubric.md"}:
+        raise HTTPException(status_code=400, detail=f"Prompt is metadata, not a runnable eval prompt: {normalized}")
+
+    prompt_path = HERMES_PROMPT_ROOT / normalized
+
+    try:
+        resolved_root = HERMES_PROMPT_ROOT.resolve()
+        resolved_path = prompt_path.resolve()
+    except FileNotFoundError:
+        raise HTTPException(status_code=400, detail=f"Approved prompt is missing: {normalized}")
+
+    if resolved_root not in resolved_path.parents:
+        raise HTTPException(status_code=400, detail="Prompt path escapes prompt root")
+
+    if not resolved_path.exists() or not resolved_path.is_file() or resolved_path.suffix != ".md":
+        raise HTTPException(status_code=400, detail=f"Approved prompt is missing: {normalized}")
+
+    return normalized
+
+
+def validate_agent_backend_eval_single_request(payload: AgentBackendEvalSingleRunRequest) -> dict[str, Any]:
+    if payload.profile not in CHAT_PROFILES:
+        raise HTTPException(status_code=400, detail=f"Unknown profile: {payload.profile}")
+
+    profile = CHAT_PROFILES[payload.profile]
+
+    if profile.get("active") is not True:
+        raise HTTPException(status_code=400, detail="Profile is not active")
+
+    model_path = profile.get("model")
+    if not model_path or not Path(model_path).exists():
+        raise HTTPException(status_code=400, detail=f"Model file not found: {model_path}")
+
+    if not Path(LLAMA_COMPLETION).exists():
+        raise HTTPException(status_code=500, detail=f"llama-completion not found: {LLAMA_COMPLETION}")
+
+    prompt_rel_path = normalize_agent_eval_prompt_path(payload.prompt)
+    prompt_path = HERMES_PROMPT_ROOT / prompt_rel_path
+
+    safe_ctx = int(payload.ctx_size or 8192)
+    if safe_ctx not in HERMES_CONTEXT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Context size is not approved: {safe_ctx}")
+
+    safe_max_tokens = max(64, min(int(payload.max_tokens or 800), 1500))
+    safe_temp = max(0.0, min(float(payload.temperature if payload.temperature is not None else 0.2), 1.0))
+
+    category, filename = prompt_rel_path.split("/", 1)
+    prompt_name = Path(filename).stem
+
+    return {
+        "profile_key": payload.profile,
+        "profile": profile,
+        "model_path": model_path,
+        "model_label": profile.get("label", payload.profile),
+        "prompt_rel_path": prompt_rel_path,
+        "prompt_path": prompt_path,
+        "prompt_text": prompt_path.read_text(encoding="utf-8"),
+        "prompt_category": category,
+        "prompt_name": prompt_name,
+        "ctx_size": safe_ctx,
+        "max_tokens": safe_max_tokens,
+        "temperature": safe_temp,
+    }
+
+
+def create_agent_backend_eval_run_record(config: dict[str, Any]) -> int:
+    if not hermes_eval_tables_exist():
+        raise HTTPException(status_code=500, detail="Agent Backend Eval tables not found. Run migration first.")
+
+    profile = config["profile"]
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO hermes_eval_runs (
+                model_profile_name,
+                model_label,
+                model_path,
+                llama_cli_path,
+                suite_name,
+                context_ladder_json,
+                selected_prompts_json,
+                max_tokens,
+                temperature,
+                gpu_layers,
+                cache_settings,
+                reasoning_setting,
+                status,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                config["profile_key"],
+                config["model_label"],
+                config["model_path"],
+                LLAMA_COMPLETION,
+                "agent-eval-v1",
+                json_dumps_compact([config["ctx_size"]]),
+                json_dumps_compact([config["prompt_rel_path"]]),
+                config["max_tokens"],
+                config["temperature"],
+                int(profile.get("gpu_layers", 999)),
+                "normal",
+                str(profile.get("reasoning", "off")),
+                "running",
+                "Created by Monolith Agent Backend Eval single-run launcher.",
+            ),
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+
+
+def update_agent_backend_eval_run_status(run_id: int, status: str, notes: str | None = None) -> None:
+    with sqlite3.connect(DB_PATH) as conn:
+        if notes is None:
+            conn.execute(
+                "UPDATE hermes_eval_runs SET status = ? WHERE id = ?",
+                (status, run_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE hermes_eval_runs SET status = ?, notes = ? WHERE id = ?",
+                (status, notes, run_id),
+            )
+        conn.commit()
+
+
+def insert_agent_backend_eval_result_record(
+    run_id: int,
+    config: dict[str, Any],
+    *,
+    status: str,
+    exit_code: int | None,
+    raw_output: str,
+    cleaned_output: str,
+    error_text: str | None,
+    prompt_eval_tps: float | None,
+    generation_tps: float | None,
+    total_runtime_sec: float | None,
+    peak_vram_mib: int | None,
+) -> int:
+    output_truncated = 1 if len(raw_output) > 500_000 else 0
+    stored_raw_output = raw_output[:500_000]
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO hermes_eval_results (
+                run_id,
+                prompt_category,
+                prompt_name,
+                prompt_path,
+                context_size,
+                status,
+                exit_code,
+                prompt_eval_tps,
+                generation_tps,
+                total_runtime_sec,
+                peak_vram_mib,
+                raw_output,
+                cleaned_output,
+                output_truncated,
+                error_text
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                config["prompt_category"],
+                config["prompt_name"],
+                config["prompt_rel_path"],
+                config["ctx_size"],
+                status,
+                exit_code,
+                prompt_eval_tps,
+                generation_tps,
+                total_runtime_sec,
+                peak_vram_mib,
+                stored_raw_output,
+                cleaned_output,
+                output_truncated,
+                error_text,
+            ),
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+
+
+def run_agent_backend_eval_single(payload: AgentBackendEvalSingleRunRequest) -> dict[str, Any]:
+    config = validate_agent_backend_eval_single_request(payload)
+    profile = config["profile"]
+
+    run_id = create_agent_backend_eval_run_record(config)
+
+    prompt_text = config["prompt_text"].strip()
+    full_prompt = prompt_text
+
+    cmd = [
+        LLAMA_COMPLETION,
+        "-m", config["model_path"],
+        "-ngl", str(profile.get("gpu_layers", 999)),
+        "-c", str(config["ctx_size"]),
+        "-b", str(profile.get("batch_size", 256)),
+        "-ub", str(profile.get("ubatch_size", 64)),
+        "--reasoning", str(profile.get("reasoning", "off")),
+        "-no-cnv",
+        "--no-display-prompt",
+        "-n", str(config["max_tokens"]),
+        "--temp", str(config["temperature"]),
+        "-p", full_prompt,
+    ]
+
+    result = run_command_capture_with_vram(cmd, timeout=600)
+
+    raw_output = result.get("stdout") or ""
+    stderr_text = result.get("stderr") or ""
+    cleaned_output, cleaned_changed = clean_eval_output_for_display(raw_output)
+    perf = parse_llama_perf(stderr_text)
+
+    try:
+        output_tokens, output_token_method = llama_token_count(config["model_path"], cleaned_output)
+    except Exception:
+        output_tokens, output_token_method = estimate_tokens(cleaned_output), "estimated-token-count-exception"
+
+    if perf["generation_tps"] is None:
+        perf["generation_tps"] = fallback_generation_tps(output_tokens, result.get("elapsed_seconds"))
+
+    timed_out = bool(result.get("timed_out"))
+    exit_code = int(result.get("returncode") if result.get("returncode") is not None else -1)
+
+    if timed_out:
+        status = "timeout"
+        error_text = "llama-completion timed out after 600 seconds"
+    elif exit_code != 0:
+        status = "failed"
+        error_text = (stderr_text.strip() or cleaned_output.strip() or f"llama-completion exited with code {exit_code}")[-4000:]
+    elif not cleaned_output.strip():
+        status = "blank-output"
+        error_text = "Run completed but produced blank output"
+    else:
+        status = "completed"
+        error_text = None
+
+    result_id = insert_agent_backend_eval_result_record(
+        run_id,
+        config,
+        status=status,
+        exit_code=exit_code,
+        raw_output=raw_output,
+        cleaned_output=cleaned_output,
+        error_text=error_text,
+        prompt_eval_tps=perf["prompt_eval_tps"],
+        generation_tps=perf["generation_tps"],
+        total_runtime_sec=result.get("elapsed_seconds"),
+        peak_vram_mib=result.get("vram_peak_mib"),
+    )
+
+    update_agent_backend_eval_run_status(
+        run_id,
+        "completed" if status == "completed" else status,
+        error_text,
+    )
+
+    return {
+        "ok": status == "completed",
+        "run_id": run_id,
+        "result_id": result_id,
+        "status": status,
+        "profile": config["profile_key"],
+        "model_label": config["model_label"],
+        "suite": "agent-eval-v1",
+        "prompt": config["prompt_rel_path"],
+        "ctx_size": config["ctx_size"],
+        "max_tokens": config["max_tokens"],
+        "temperature": config["temperature"],
+        "elapsed_seconds": result.get("elapsed_seconds"),
+        "prompt_eval_tps": perf["prompt_eval_tps"],
+        "generation_tps": perf["generation_tps"],
+        "peak_vram_mib": result.get("vram_peak_mib"),
+        "cleaned_changed": cleaned_changed,
+        "output_tokens": output_tokens,
+        "output_token_method": output_token_method,
+        "output_preview": cleaned_output[:4000],
+        "stderr_tail": stderr_text[-2000:],
+        "error_text": error_text,
+    }
+
+
+@app.post("/api/eval/agent-backend/run-single")
+def api_agent_backend_eval_run_single(payload: AgentBackendEvalSingleRunRequest):
+    return run_agent_backend_eval_single(payload)
+
+
+@app.get("/api/eval/agent-backend/options")
 @app.get("/api/eval/hermes/options")
 def api_hermes_eval_options():
     return hermes_eval_options_payload()
 
 
+@app.get("/eval/agent-backend", response_class=HTMLResponse)
 @app.get("/eval/hermes", response_class=HTMLResponse)
 def eval_hermes(request: Request):
     return templates.TemplateResponse(
