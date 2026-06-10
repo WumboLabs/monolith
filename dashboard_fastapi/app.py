@@ -50,7 +50,7 @@ EVAL_TASK_LOCK = threading.Lock()
 
 APP_NAME = "Monolith"
 APP_SUBTITLE = "Local AI Workbench"
-APP_VERSION = "alpha v0.11.2"
+APP_VERSION = "alpha v0.11.3"
 
 app = FastAPI(title="Monolith")
 
@@ -4889,6 +4889,118 @@ def huggingface_resolve_url(repo_id: str, source_filename: str) -> str:
     return f"https://huggingface.co/{safe_repo_id}/resolve/main/{encoded_filename}"
 
 
+def format_bytes_compact(value: int | float | None) -> str:
+    if value is None:
+        return "unknown"
+
+    value = float(value)
+    units = ["B", "KiB", "MiB", "GiB", "TiB"]
+
+    for unit in units:
+        if abs(value) < 1024.0 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.2f} {unit}"
+        value /= 1024.0
+
+    return f"{value:.2f} TiB"
+
+
+def format_duration_compact(seconds: float | int | None) -> str:
+    if seconds is None:
+        return "—"
+
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours:d}:{minutes:02d}:{secs:02d}"
+
+    return f"{minutes:d}:{secs:02d}"
+
+
+def parse_local_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+
+    value = value.strip()
+
+    # current_timestamp_local() stores values like:
+    # 2026-06-10 19:02:36 EDT
+    if value.endswith(" EDT") or value.endswith(" EST"):
+        value = value.rsplit(" ", 1)[0]
+
+    try:
+        return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def enrich_model_download_job(row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+
+    bytes_downloaded = int(item.get("bytes_downloaded") or 0)
+    expected_size = item.get("expected_size_bytes") or item.get("size_bytes")
+
+    if expected_size is not None:
+        expected_size = int(expected_size)
+
+    if expected_size is None and item.get("status") == "completed":
+        expected_size = bytes_downloaded
+
+    item["bytes_downloaded_display"] = format_bytes_compact(bytes_downloaded)
+    item["expected_size_display"] = format_bytes_compact(expected_size)
+
+    if expected_size and expected_size > 0:
+        item["progress_percent"] = round(min(100.0, (bytes_downloaded / expected_size) * 100.0), 1)
+        item["progress_display"] = f"{item['bytes_downloaded_display']} / {item['expected_size_display']} · {item['progress_percent']}%"
+    else:
+        item["progress_percent"] = None
+        item["progress_display"] = item["bytes_downloaded_display"]
+
+    started_at = parse_local_timestamp(item.get("started_at"))
+    completed_at = parse_local_timestamp(item.get("completed_at"))
+    now = datetime.now()
+
+    if started_at and completed_at:
+        elapsed_seconds = (completed_at - started_at).total_seconds()
+    elif started_at:
+        elapsed_seconds = (now - started_at).total_seconds()
+    else:
+        elapsed_seconds = None
+
+    item["elapsed_seconds"] = int(elapsed_seconds) if elapsed_seconds is not None else None
+    item["runtime_display"] = format_duration_compact(elapsed_seconds)
+
+    if elapsed_seconds and elapsed_seconds > 0 and bytes_downloaded > 0:
+        rate_bps = bytes_downloaded / elapsed_seconds
+    else:
+        rate_bps = None
+
+    item["transfer_rate_bps"] = int(rate_bps) if rate_bps else None
+    item["transfer_rate_display"] = f"{format_bytes_compact(rate_bps)}/s" if rate_bps else "—"
+
+    if (
+        item.get("status") == "running"
+        and expected_size
+        and rate_bps
+        and bytes_downloaded < expected_size
+    ):
+        eta_seconds = (expected_size - bytes_downloaded) / rate_bps
+    else:
+        eta_seconds = None
+
+    item["eta_seconds"] = int(eta_seconds) if eta_seconds is not None else None
+    item["eta_display"] = format_duration_compact(eta_seconds)
+
+    size_bytes = expected_size or bytes_downloaded or None
+    item["size_gib"] = round(float(size_bytes) / (1024 ** 3), 2) if size_bytes else None
+    item["destination_exists"] = Path(item["destination_path"]).expanduser().exists()
+
+    return item
+
+
 def load_model_download_jobs(limit: int = 50) -> list[dict[str, Any]]:
     if not model_downloader_tables_exist():
         return []
@@ -4903,12 +5015,7 @@ def load_model_download_jobs(limit: int = 50) -> list[dict[str, Any]]:
         (max(1, min(int(limit or 50), 200)),),
     )
 
-    for row in rows:
-        size_bytes = row.get("size_bytes") or row.get("expected_size_bytes")
-        row["size_gib"] = round(float(size_bytes) / (1024 ** 3), 2) if size_bytes else None
-        row["destination_exists"] = Path(row["destination_path"]).expanduser().exists()
-
-    return rows
+    return [enrich_model_download_job(row) for row in rows]
 
 
 def plan_model_download_job(payload: ModelDownloadPlanRequest) -> dict[str, Any]:
@@ -5026,6 +5133,235 @@ def plan_model_download_job(payload: ModelDownloadPlanRequest) -> dict[str, Any]
     return row
 
 
+MODEL_DOWNLOAD_TASKS: dict[int, threading.Thread] = {}
+MODEL_DOWNLOAD_TASK_LOCK = threading.Lock()
+
+
+def get_model_download_job(job_id: int) -> dict[str, Any]:
+    if not model_downloader_tables_exist():
+        raise HTTPException(status_code=500, detail="Model downloader tables not found. Run migration first.")
+
+    row = db_one(
+        """
+        SELECT *
+        FROM model_download_jobs
+        WHERE id = ?
+        """,
+        (job_id,),
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Download job not found: {job_id}")
+
+    return row
+
+
+def update_model_download_job(job_id: int, **fields: Any) -> None:
+    if not fields:
+        return
+
+    allowed = {
+        "updated_at",
+        "started_at",
+        "completed_at",
+        "status",
+        "bytes_downloaded",
+        "expected_size_bytes",
+        "error_text",
+        "notes",
+    }
+
+    unknown = set(fields) - allowed
+    if unknown:
+        raise ValueError(f"Unsupported download job update fields: {sorted(unknown)}")
+
+    assignments = ", ".join(f"{key} = ?" for key in fields)
+    values = tuple(fields[key] for key in fields)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            f"""
+            UPDATE model_download_jobs
+            SET {assignments}
+            WHERE id = ?
+            """,
+            values + (job_id,),
+        )
+        conn.commit()
+
+
+def assert_download_destination_is_safe(destination_path: str) -> Path:
+    root = approved_model_download_root().expanduser().resolve(strict=False)
+    destination = Path(destination_path).expanduser().resolve(strict=False)
+
+    try:
+        destination.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError("Download destination escapes approved download root.") from exc
+
+    if destination.suffix.lower() != ".gguf":
+        raise RuntimeError("Download destination must be a GGUF file.")
+
+    if destination.name.lower().startswith("mmproj-") or "mmproj" in destination.name.lower():
+        raise RuntimeError("mmproj files are excluded from download execution.")
+
+    return destination
+
+
+def download_model_job(job_id: int) -> None:
+    import urllib.error
+    import urllib.request
+
+    job = get_model_download_job(job_id)
+    now = current_timestamp_local()
+
+    try:
+        destination = assert_download_destination_is_safe(job["destination_path"])
+        part_path = destination.with_name(destination.name + ".part")
+
+        if destination.exists() and not int(job.get("overwrite_existing") or 0):
+            raise RuntimeError("Destination file already exists. Refusing to overwrite.")
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        update_model_download_job(
+            job_id,
+            updated_at=now,
+            started_at=now,
+            completed_at=None,
+            status="running",
+            bytes_downloaded=0,
+            error_text=None,
+        )
+
+        request = urllib.request.Request(
+            job["source_url"],
+            headers={
+                "User-Agent": "Monolith-Local-AI-Workbench/alpha",
+            },
+            method="GET",
+        )
+
+        bytes_downloaded = 0
+        last_update = time.time()
+
+        with urllib.request.urlopen(request, timeout=30) as response:
+            content_length = response.headers.get("Content-Length")
+            if content_length and not job.get("expected_size_bytes"):
+                try:
+                    expected_size_from_response = int(content_length)
+                    update_model_download_job(
+                        job_id,
+                        updated_at=current_timestamp_local(),
+                        expected_size_bytes=expected_size_from_response,
+                    )
+                    job["expected_size_bytes"] = expected_size_from_response
+                except ValueError:
+                    pass
+
+            with part_path.open("wb") as handle:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+
+                    handle.write(chunk)
+                    bytes_downloaded += len(chunk)
+
+                    if time.time() - last_update >= 1.0:
+                        update_model_download_job(
+                            job_id,
+                            updated_at=current_timestamp_local(),
+                            bytes_downloaded=bytes_downloaded,
+                        )
+                        last_update = time.time()
+
+        expected_size = job.get("expected_size_bytes") or job.get("size_bytes")
+        if expected_size and bytes_downloaded != int(expected_size):
+            raise RuntimeError(
+                f"Downloaded size mismatch: expected {expected_size} bytes, got {bytes_downloaded} bytes."
+            )
+
+        part_path.replace(destination)
+
+        completed_at = current_timestamp_local()
+        update_model_download_job(
+            job_id,
+            updated_at=completed_at,
+            completed_at=completed_at,
+            status="completed",
+            bytes_downloaded=bytes_downloaded,
+            error_text=None,
+        )
+
+        try:
+            scan_local_model_inventory()
+        except Exception as exc:
+            update_model_download_job(
+                job_id,
+                updated_at=current_timestamp_local(),
+                notes=f"Download completed. Local inventory rescan failed: {exc}",
+            )
+
+    except Exception as exc:
+        failed_at = current_timestamp_local()
+        update_model_download_job(
+            job_id,
+            updated_at=failed_at,
+            completed_at=failed_at,
+            status="failed",
+            error_text=str(exc),
+        )
+    finally:
+        with MODEL_DOWNLOAD_TASK_LOCK:
+            MODEL_DOWNLOAD_TASKS.pop(job_id, None)
+
+
+def start_model_download_job(job_id: int) -> dict[str, Any]:
+    job = get_model_download_job(job_id)
+    status = job.get("status")
+
+    if status not in {"planned", "failed"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Download job cannot be started from status: {status}",
+        )
+
+    destination = assert_download_destination_is_safe(job["destination_path"])
+
+    if destination.exists() and not int(job.get("overwrite_existing") or 0):
+        raise HTTPException(
+            status_code=409,
+            detail="Destination file already exists. Refusing to overwrite.",
+        )
+
+    with MODEL_DOWNLOAD_TASK_LOCK:
+        if job_id in MODEL_DOWNLOAD_TASKS:
+            raise HTTPException(status_code=409, detail="Download job is already running.")
+
+        thread = threading.Thread(
+            target=download_model_job,
+            args=(job_id,),
+            daemon=True,
+            name=f"monolith-model-download-{job_id}",
+        )
+        MODEL_DOWNLOAD_TASKS[job_id] = thread
+        thread.start()
+
+    started = get_model_download_job(job_id)
+    started["destination_exists"] = Path(started["destination_path"]).expanduser().exists()
+    started["download_enabled"] = True
+    return started
+
+
+@app.post("/api/models/downloads/{job_id}/start")
+def api_models_downloads_start(job_id: int):
+    return {
+        "ok": True,
+        "job": start_model_download_job(job_id),
+    }
+
+
 @app.get("/api/models/downloads")
 def api_models_downloads(limit: int = 50):
     return {
@@ -5060,6 +5396,7 @@ def models(request: Request):
     chat_rows = [row for row in rows if row.get("kind") == "chat_profile"]
     catalog_rows = [row for row in rows if row.get("kind") != "chat_profile"]
     local_inventory = load_local_model_inventory()
+    download_jobs = load_model_download_jobs(25)
 
     found_count = sum(1 for row in rows if row.get("path_status", {}).get("exists"))
     missing_count = sum(
@@ -5078,6 +5415,7 @@ def models(request: Request):
             "chat_rows": chat_rows,
             "catalog_rows": catalog_rows,
             "local_inventory": local_inventory,
+            "download_jobs": download_jobs,
             "found_count": found_count,
             "missing_count": missing_count,
             "active_count": active_count,

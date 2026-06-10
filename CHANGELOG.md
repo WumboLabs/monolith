@@ -1,5 +1,33 @@
 # Monolith Changelog
 
+## alpha v0.11.3 - 2026-06-11
+
+### Added
+- Added controlled model downloader execution for planned Hugging Face GGUF download jobs.
+- Added `POST /api/models/downloads/{job_id}/start` to explicitly start planned downloads.
+- Added `.part` file download behavior so final GGUF files only appear after successful completion.
+- Added download job status transitions for planned, running, completed, and failed states.
+- Added byte progress tracking during active downloads.
+- Added automatic local model inventory rescan after completed downloads.
+- Added a Download Jobs panel on the Models page.
+- Added Start Download buttons for planned and failed jobs.
+- Added downloader runtime, progress, transfer-rate, and ETA display fields.
+- Added `scripts/test_model_downloader_tiny.py` for safe downloader execution validation without downloading a real model.
+
+### Safety
+- Downloads can only start from existing planned or failed jobs.
+- Downloads remain restricted to the approved model download root.
+- Destination path safety is rechecked before execution.
+- Existing final files are not overwritten unless the job explicitly allows overwrite.
+- Downloads write to `.part` first and rename only after success.
+- Config edits and model execution remain disabled.
+
+### Validation
+- Verified a real Hugging Face GGUF download completed successfully.
+- Verified `.part` cleanup and final GGUF placement.
+- Verified local inventory rescan after completion.
+- Verified tiny local downloader integration test passes and cleans up after itself.
+
 ## alpha v0.11.2 - 2026-06-11
 
 ### Added

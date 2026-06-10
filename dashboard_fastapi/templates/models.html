@@ -81,7 +81,7 @@
   </form>
 
   <div class="micro-muted">
-    Policy: metadata-only · no downloads · no config writes · no model execution
+    Policy: controlled downloads · approved root only · no config writes · no model execution
   </div>
 
   <table class="models-table compact-table" id="hf-discovery-table" style="display: none;">
@@ -92,6 +92,7 @@
         <th>Guess</th>
         <th>Size</th>
         <th>Repo</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody id="hf-discovery-results"></tbody>
@@ -120,6 +121,92 @@
       </select>
     </label>
   </div>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Download jobs</h2>
+      <p class="muted">
+        Controlled Hugging Face downloads. Files write to <code>.part</code> first, then move into place after completion.
+        Config edits and model execution are not automatic.
+      </p>
+    </div>
+  </div>
+
+  {% if download_jobs %}
+  <table class="models-table compact-table" id="download-jobs-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>File</th>
+        <th>Progress</th>
+        <th>Runtime</th>
+        <th>Destination</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="download-jobs-body">
+      {% for job in download_jobs %}
+      <tr data-download-job-id="{{ job.id }}">
+        <td>#{{ job.id }}</td>
+        <td>
+          <span class="status-pill {% if job.status == 'completed' %}status-good{% elif job.status == 'failed' %}status-warn{% endif %}">
+            {{ job.status }}
+          </span>
+          {% if job.error_text %}
+            <div class="micro-muted">{{ job.error_text }}</div>
+          {% endif %}
+        </td>
+        <td>
+          <strong>{{ job.filename }}</strong>
+          <div class="micro-muted">{{ job.source_repo_id }}</div>
+        </td>
+        <td>
+          {{ job.progress_display }}
+          <div class="micro-muted">{{ job.transfer_rate_display }}</div>
+          {% if job.status == "running" %}
+            <div class="micro-muted">ETA {{ job.eta_display }}</div>
+          {% endif %}
+        </td>
+        <td>
+          {{ job.runtime_display }}
+          {% if job.started_at %}
+            <div class="micro-muted">started {{ job.started_at }}</div>
+          {% endif %}
+          {% if job.completed_at %}
+            <div class="micro-muted">completed {{ job.completed_at }}</div>
+          {% endif %}
+        </td>
+        <td class="path-cell">
+          {{ job.destination_path }}
+        </td>
+        <td>
+          {% if job.status in ["planned", "failed"] %}
+            <button
+              type="button"
+              class="button secondary-button start-download-button"
+              data-job-id="{{ job.id }}"
+              data-filename="{{ job.filename }}"
+            >
+              Start download
+            </button>
+          {% elif job.status == "running" %}
+            <span class="status-pill">RUNNING</span>
+          {% elif job.status == "completed" %}
+            <span class="status-pill status-good">DONE</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No download jobs planned yet.</p>
+  {% endif %}
 </section>
 
 <section class="model-section">
@@ -494,6 +581,23 @@
       repoCell.appendChild(repoLink);
       row.appendChild(repoCell);
 
+      const actionCell = document.createElement("td");
+      const planButton = document.createElement("button");
+      planButton.type = "button";
+      planButton.className = "button secondary-button";
+      planButton.textContent = "Plan download";
+      planButton.dataset.repoId = item.repo_id || "";
+      planButton.dataset.filename = item.filename || "";
+      planButton.dataset.sizeBytes = item.size_bytes || "";
+      planButton.dataset.localMatch = item.local_match ? "1" : "0";
+
+      planButton.addEventListener("click", async () => {
+        await planDiscoveryDownload(item, planButton);
+      });
+
+      actionCell.appendChild(planButton);
+      row.appendChild(actionCell);
+
       discoveryResults.appendChild(row);
     }
 
@@ -508,7 +612,61 @@
       }
     }
 
-    if (discoveryPrev) {
+    async function planDiscoveryDownload(item, button) {
+    const repoId = item.repo_id || "";
+    const filename = item.filename || "";
+
+    if (!repoId || !filename) {
+      alert("Cannot plan download: missing repository or filename metadata.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Plan download for:\n\n${repoId}\n${filename}\n\nNo file will be downloaded yet.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Planning...";
+
+    try {
+      const response = await fetch("/api/models/downloads/plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source_repo_id: repoId,
+          source_filename: filename,
+          size_bytes: item.size_bytes || null,
+          local_match: Boolean(item.local_match),
+          overwrite_existing: false,
+          notes: "Planned from Hugging Face discovery UI.",
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Plan failed with HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const job = payload.job || {};
+
+      button.textContent = "Planned";
+      discoveryStatus.textContent = `Planned download job #${job.id || "unknown"} for ${job.filename || filename}. Refresh to view jobs.`;
+    } catch (error) {
+      alert(`Download planning failed: ${error}`);
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+
+  if (discoveryPrev) {
       discoveryPrev.disabled = hfDiscoveryPage <= 1;
     }
 
@@ -580,6 +738,44 @@
       } finally {
         discoveryButton.disabled = false;
         discoveryButton.textContent = "Search GGUF metadata";
+      }
+    });
+  }
+
+  const startDownloadButtons = document.querySelectorAll(".start-download-button");
+
+  for (const button of startDownloadButtons) {
+    button.addEventListener("click", async () => {
+      const jobId = button.dataset.jobId;
+      const filename = button.dataset.filename || "selected file";
+
+      const confirmed = window.confirm(
+        `Start download job #${jobId}?\n\n${filename}\n\nThis may download a large GGUF file.`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Starting...";
+
+      try {
+        const response = await fetch(`/api/models/downloads/${jobId}/start`, {
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Start failed with HTTP ${response.status}`);
+        }
+
+        button.textContent = "Running";
+        window.setTimeout(() => window.location.reload(), 1000);
+      } catch (error) {
+        alert(`Download start failed: ${error}`);
+        button.disabled = false;
+        button.textContent = "Start download";
       }
     });
   }

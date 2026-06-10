@@ -14,7 +14,7 @@ It is currently useful as a personal/local AI workbench, but it is not yet packa
 
 Current version:
 
-    alpha v0.11.2
+    alpha v0.11.3
 
 ## What Monolith is for
 
@@ -96,9 +96,9 @@ Monolith uses alpha milestone versioning.
 Examples:
 
 - `alpha v0.10.0` — initial public preflight baseline
-- `alpha v0.11.2` — downloader planning foundation
-- `alpha v0.11.3` — next feature milestone
-- `alpha v0.11.3.1` — small patch after that milestone
+- `alpha v0.11.3` — controlled downloader execution and UI
+- `alpha v0.11.4` — next feature milestone
+- `alpha v0.11.4.1` — small patch after that milestone
 
 Current version is tracked in:
 
