@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>Context Scaling</h1>
+
+{% include "partials/testbench_tabs.html" %}
+    <p class="muted">
+      Controlled workflow for comparing local model behavior across approved context ladders.
+    </p>
+  </div>
+
+  <div class="detail-status-stack">
+    <span class="status-pill">ACTIVE</span>
+    <span class="status-pill">CONTROLLED</span>
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Stored runs</div>
+    <div class="metric-value">{{ summary.run_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Stored results</div>
+    <div class="metric-value">{{ summary.result_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Default ladder</div>
+    <div class="metric-value metric-small">{{ options.default_context_ladder | join(", ") }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Extended ladder</div>
+    <div class="metric-value metric-small">{{ options.extended_context_ladder | join(", ") }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Cache mode</div>
+    <div class="metric-value metric-small">normal</div>
+  </div>
+</section>
+
+<section class="dashboard-panel eval-runner-panel">
+  <div class="section-heading-row">
+    <div>
+      <h2>Run context scaling</h2>
+      <p class="muted">Controlled runner. Uses active profiles, approved prompts, and approved context ladders only.</p>
+    </div>
+  </div>
+
+  <form id="contextScalingForm" class="eval-runner-form">
+    <label>
+      Model profile
+      <select id="contextScalingProfile" required>
+        {% for profile in options.profiles %}
+        <option value="{{ profile.key }}" {% if not profile.model_exists %}disabled{% endif %}>
+          {{ profile.label }}{% if not profile.model_exists %} — missing file{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      Context ladder
+      <select id="contextScalingLadder">
+        <option value="default">Default: {{ options.default_context_ladder | join(", ") }}</option>
+        <option value="extended">Extended: {{ options.default_context_ladder | join(", ") }}, {{ options.extended_context_ladder | join(", ") }}</option>
+        <option value="8192">8192 only</option>
+      </select>
+    </label>
+
+    <label>
+      Max tokens
+      <input id="contextScalingMaxTokens" type="number" min="64" max="4096" value="{{ options.default_max_tokens }}">
+    </label>
+
+    <label>
+      Temperature
+      <input id="contextScalingTemp" type="number" min="0" max="2" step="0.1" value="{{ options.default_temperature }}">
+    </label>
+
+    <button id="contextScalingRunButton" type="submit" class="send-button">Run scaling</button>
+    <button id="contextScalingAbortButton" type="button" class="chat-action-button eval-abort-button" disabled>Stop run</button>
+    <button id="contextScalingCleanupButton" type="button" class="chat-action-button eval-cleanup-button">Clear stale eval process</button>
+  </form>
+
+  <div class="context-scaling-prompt-checks">
+    {% for prompt in options.prompt_options %}
+    <label class="context-scaling-check">
+      <input type="checkbox" name="contextScalingPrompt" value="{{ prompt.path }}" checked {% if not prompt.exists %}disabled{% endif %}>
+      <span>
+        <strong>{{ prompt.title }}</strong>
+        <span class="micro-muted">{{ prompt.path }}</span>
+      </span>
+    </label>
+    {% endfor %}
+  </div>
+
+  <div id="contextScalingTaskStatus" class="eval-task-status hidden">
+    <div class="dashboard-mini-metrics">
+      <span>Status <strong id="contextScalingTaskState">queued</strong></span>
+      <span>Elapsed <strong id="contextScalingTaskElapsed">0:00</strong></span>
+      <span>ETA <strong id="contextScalingTaskEta">calculating</strong></span>
+      <span>Progress <strong id="contextScalingTaskProgress">0 / 0</strong></span>
+      <span>Current <strong id="contextScalingTaskCurrent">—</strong></span>
+      <span>Peak VRAM <strong id="contextScalingTaskVram">—</strong></span>
+    </div>
+
+    <p class="muted" id="contextScalingTaskMessage">Waiting...</p>
+
+    <pre id="contextScalingTaskOutput" class="eval-task-output"></pre>
+
+    <a id="contextScalingTaskDetailLink" class="hidden" href="#">Open context-scaling result</a>
+  </div>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Context Scaling guardrails</h2>
+  <p class="muted">
+    Execution is enabled through the controlled Monolith / Quant Lab runner path.
+  </p>
+
+  <ul class="eval-guardrails">
+    <li>Use active Monolith model profiles only.</li>
+    <li>Use approved core-v2 prompt files only.</li>
+    <li>Use bounded context ladders only.</li>
+    <li>Start with normal/stable cache mode.</li>
+    <li>Preserve raw output unchanged.</li>
+    <li>Expose failures and blank outputs instead of hiding them.</li>
+  </ul>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Default context-scaling plan</h2>
+      <p class="muted">First target: Qwen3.6-35B-A3B-UD-IQ2_M profile, but the UI will stay profile-generic.</p>
+    </div>
+  </div>
+
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>Setting</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Context ladder</td>
+        <td>{{ options.default_context_ladder | join(", ") }}</td>
+      </tr>
+      <tr>
+        <td>Optional extended ladder</td>
+        <td>{{ options.extended_context_ladder | join(", ") }}</td>
+      </tr>
+      <tr>
+        <td>Temperature</td>
+        <td>{{ options.default_temperature }}</td>
+      </tr>
+      <tr>
+        <td>Max tokens</td>
+        <td>{{ options.default_max_tokens }}</td>
+      </tr>
+      <tr>
+        <td>Cache mode</td>
+        <td>normal / stable first</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Approved prompt subset</h2>
+      <p class="muted">Initial context-scaling prompts. No arbitrary prompt roots.</p>
+    </div>
+  </div>
+
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>Prompt</th>
+        <th>Category</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for prompt in options.prompt_options %}
+      <tr>
+        <td>
+          <strong>{{ prompt.title }}</strong>
+          <div class="micro-muted">{{ prompt.path }}</div>
+        </td>
+        <td><span class="status-pill">{{ prompt.category_label or prompt.category }}</span></td>
+        <td>
+          {% if prompt.exists %}
+            <span class="status-pill status-good">FOUND</span>
+          {% else %}
+            <span class="status-pill status-bad">MISSING</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Context-scaling runs</h2>
+      <p class="muted">Stored comparison runs from controlled Context Scaling tasks.</p>
+    </div>
+  </div>
+
+  {% if summary.latest %}
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Model</th>
+        <th>Ladder</th>
+        <th>Status</th>
+        <th>Results</th>
+        <th>Speed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in summary.latest %}
+      <tr>
+        <td><a href="/eval/context-scaling/{{ row.id }}">#{{ row.id }}</a></td>
+        <td>
+          <strong>{{ row.model_label or row.model_profile_name }}</strong>
+          <div class="micro-muted">{{ row.cache_mode }}</div>
+        </td>
+        <td><code>{{ row.context_ladder_json }}</code></td>
+        <td><span class="status-pill">{{ row.status }}</span></td>
+        <td>{{ row.result_count }} results · {{ row.context_count }} contexts</td>
+        <td>
+          {{ row.avg_generation_tps or "—" }} gen tok/s
+          <div class="micro-muted">{{ row.avg_prompt_eval_tps or "—" }} prompt tok/s</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No context-scaling runs stored yet.</p>
+  {% endif %}
+</section>
+
+
+<script>
+const contextScalingForm = document.getElementById("contextScalingForm");
+const contextScalingRunButton = document.getElementById("contextScalingRunButton");
+const contextScalingAbortButton = document.getElementById("contextScalingAbortButton");
+const contextScalingCleanupButton = document.getElementById("contextScalingCleanupButton");
+const contextScalingTaskStatus = document.getElementById("contextScalingTaskStatus");
+const contextScalingTaskState = document.getElementById("contextScalingTaskState");
+const contextScalingTaskElapsed = document.getElementById("contextScalingTaskElapsed");
+const contextScalingTaskEta = document.getElementById("contextScalingTaskEta");
+const contextScalingTaskProgress = document.getElementById("contextScalingTaskProgress");
+const contextScalingTaskCurrent = document.getElementById("contextScalingTaskCurrent");
+const contextScalingTaskVram = document.getElementById("contextScalingTaskVram");
+const contextScalingTaskMessage = document.getElementById("contextScalingTaskMessage");
+const contextScalingTaskOutput = document.getElementById("contextScalingTaskOutput");
+const contextScalingTaskDetailLink = document.getElementById("contextScalingTaskDetailLink");
+
+let currentContextScalingTaskId = null;
+
+function contextScalingSelectedContexts() {
+  const value = document.getElementById("contextScalingLadder").value;
+
+  if (value === "extended") {
+    return [8192, 12288, 16384, 24576, 32768];
+  }
+
+  if (value === "8192") {
+    return [8192];
+  }
+
+  return [8192, 12288, 16384];
+}
+
+function contextScalingSelectedPrompts() {
+  return Array.from(document.querySelectorAll('input[name="contextScalingPrompt"]:checked'))
+    .map((item) => item.value);
+}
+
+async function pollContextScalingTask(taskId) {
+  const response = await fetch(`/api/eval/context-scaling/tasks/${taskId}`, {
+    cache: "no-store"
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Task status request failed");
+  }
+
+  contextScalingTaskState.textContent = data.status || "unknown";
+  contextScalingTaskElapsed.textContent = data.elapsed_display || "0:00";
+  contextScalingTaskEta.textContent = data.eta_display || "calculating";
+  contextScalingTaskProgress.textContent = `${data.completed_items || 0} / ${data.total_items || 0}`;
+  contextScalingTaskCurrent.textContent = data.current_item || data.current_prompt || "—";
+  contextScalingTaskVram.textContent = data.peak_vram_mb ? `${data.peak_vram_mb} MiB` : "—";
+  contextScalingTaskMessage.textContent = data.last_message || "";
+  contextScalingTaskOutput.textContent = data.stdout_tail || "";
+
+  if (data.result_url || data.detail_url) {
+    contextScalingTaskDetailLink.href = data.result_url || data.detail_url;
+    contextScalingTaskDetailLink.classList.remove("hidden");
+  }
+
+  if (data.status === "completed") {
+    contextScalingRunButton.disabled = false;
+    contextScalingAbortButton.disabled = true;
+    if (contextScalingCleanupButton) contextScalingCleanupButton.disabled = false;
+    contextScalingRunButton.textContent = "Run scaling";
+    contextScalingTaskMessage.textContent = "Completed. Opening context-scaling result...";
+
+    window.setTimeout(() => {
+      if (data.result_url || data.detail_url) {
+        window.location.href = data.result_url || data.detail_url;
+      } else {
+        window.location.reload();
+      }
+    }, 750);
+
+    return;
+  }
+
+  if (data.status === "aborted") {
+    contextScalingRunButton.disabled = false;
+    contextScalingAbortButton.disabled = true;
+    if (contextScalingCleanupButton) contextScalingCleanupButton.disabled = false;
+    contextScalingRunButton.textContent = "Run scaling";
+    contextScalingTaskMessage.textContent = "Aborted. Refreshing Context Scaling...";
+
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 900);
+
+    return;
+  }
+
+  if (data.status === "failed") {
+    contextScalingRunButton.disabled = false;
+    contextScalingAbortButton.disabled = true;
+    if (contextScalingCleanupButton) contextScalingCleanupButton.disabled = false;
+    contextScalingRunButton.textContent = "Run scaling";
+    return;
+  }
+
+  window.setTimeout(() => pollContextScalingTask(taskId), 1000);
+}
+
+if (contextScalingForm) {
+  contextScalingForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const prompts = contextScalingSelectedPrompts();
+
+    if (!prompts.length) {
+      alert("Select at least one approved prompt.");
+      return;
+    }
+
+    contextScalingRunButton.disabled = true;
+    contextScalingAbortButton.disabled = true;
+    if (contextScalingCleanupButton) contextScalingCleanupButton.disabled = true;
+    contextScalingRunButton.textContent = "Running...";
+    contextScalingTaskStatus.classList.remove("hidden");
+    contextScalingTaskState.textContent = "queued";
+    contextScalingTaskElapsed.textContent = "0:00";
+    contextScalingTaskEta.textContent = "calculating";
+    contextScalingTaskProgress.textContent = "0 / 0";
+    contextScalingTaskCurrent.textContent = "—";
+    contextScalingTaskVram.textContent = "—";
+    contextScalingTaskMessage.textContent = "Starting Context Scaling run...";
+    contextScalingTaskOutput.textContent = "";
+    contextScalingTaskDetailLink.classList.add("hidden");
+
+    try {
+      const response = await fetch("/api/eval/context-scaling/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          profile: document.getElementById("contextScalingProfile").value,
+          contexts: contextScalingSelectedContexts(),
+          prompts: prompts,
+          max_tokens: Number(document.getElementById("contextScalingMaxTokens").value),
+          temperature: Number(document.getElementById("contextScalingTemp").value)
+        })
+      });
+
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error(responseText || "Server returned a non-JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || responseText || "Failed to start Context Scaling run");
+      }
+
+      currentContextScalingTaskId = data.task_id;
+      contextScalingAbortButton.disabled = false;
+      if (contextScalingCleanupButton) contextScalingCleanupButton.disabled = true;
+      pollContextScalingTask(data.task_id);
+    } catch (error) {
+      contextScalingRunButton.disabled = false;
+      contextScalingAbortButton.disabled = true;
+      if (contextScalingCleanupButton) contextScalingCleanupButton.disabled = false;
+      contextScalingRunButton.textContent = "Run scaling";
+      contextScalingTaskState.textContent = "failed";
+      contextScalingTaskMessage.textContent = error.message;
+    }
+  });
+}
+
+if (contextScalingCleanupButton) {
+  contextScalingCleanupButton.addEventListener("click", async () => {
+    contextScalingCleanupButton.disabled = true;
+    contextScalingTaskStatus.classList.remove("hidden");
+    contextScalingTaskState.textContent = "cleanup";
+    contextScalingTaskElapsed.textContent = "—";
+    contextScalingTaskEta.textContent = "—";
+    contextScalingTaskProgress.textContent = "—";
+    contextScalingTaskCurrent.textContent = "stale process scan";
+    contextScalingTaskVram.textContent = "—";
+    contextScalingTaskMessage.textContent = "Checking for stale Local Eval / Context Scaling processes...";
+    contextScalingTaskOutput.textContent = "";
+
+    try {
+      const response = await fetch("/api/eval/cleanup-stale", {
+        method: "POST"
+      });
+
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error(responseText || "Server returned a non-JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || responseText || "Failed to clean stale eval processes");
+      }
+
+      contextScalingTaskState.textContent = "cleanup complete";
+      contextScalingTaskMessage.textContent = `Cleanup complete. Candidates: ${data.candidate_count || 0}. Cleaned: ${data.cleaned_count || 0}. Refreshing...`;
+      contextScalingTaskOutput.textContent = JSON.stringify(data.cleaned || [], null, 2);
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 900);
+    } catch (error) {
+      contextScalingCleanupButton.disabled = false;
+      contextScalingTaskState.textContent = "failed";
+      contextScalingTaskMessage.textContent = error.message;
+    }
+  });
+}
+
+if (contextScalingAbortButton) {
+  contextScalingAbortButton.addEventListener("click", async () => {
+    if (!currentContextScalingTaskId) {
+      return;
+    }
+
+    contextScalingAbortButton.disabled = true;
+    contextScalingTaskMessage.textContent = "Abort requested...";
+
+    try {
+      await fetch(`/api/eval/tasks/${currentContextScalingTaskId}/abort`, {
+        method: "POST"
+      });
+    } catch (error) {
+      contextScalingTaskMessage.textContent = error.message;
+    }
+  });
+}
+</script>
+
+{% endblock %}

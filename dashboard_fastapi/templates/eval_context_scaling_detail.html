@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>Context Scaling #{{ run.id }}</h1>
+    <p class="muted">
+      {{ run.model_label or run.model_profile_name }} · {{ run.created_at }} · {{ run.status }}
+    </p>
+  </div>
+
+  <div class="detail-status-stack">
+    <span class="status-pill">{{ run.status }}</span>
+    <span class="status-pill">{{ run.cache_mode }}</span>
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Contexts</div>
+    <div class="metric-value">{{ contexts | length }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Prompts</div>
+    <div class="metric-value">{{ prompts | length }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Max tokens</div>
+    <div class="metric-value">{{ run.max_tokens }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Temperature</div>
+    <div class="metric-value">{{ run.temperature }}</div>
+  </div>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Run metadata</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>Model profile</th><td>{{ run.model_profile_name }}</td></tr>
+      <tr><th>Model label</th><td>{{ run.model_label }}</td></tr>
+      <tr><th>Backend</th><td>{{ run.backend_label }}</td></tr>
+      <tr><th>Quant</th><td>{{ run.quant_label }}</td></tr>
+      <tr><th>Cache mode</th><td>{{ run.cache_mode }}</td></tr>
+      <tr><th>Context ladder</th><td><code>{{ run.context_ladder_json }}</code></td></tr>
+      <tr><th>Selected prompts</th><td><code>{{ run.selected_prompts_json }}</code></td></tr>
+      <tr><th>Notes</th><td>{{ run.notes or "—" }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Results matrix</h2>
+      <p class="muted">One row per prompt/context result. Execution is not wired yet for alpha v0.08.0.</p>
+    </div>
+  </div>
+
+  {% if results %}
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>Context</th>
+        <th>Prompt</th>
+        <th>Status</th>
+        <th>Speed</th>
+        <th>VRAM</th>
+        <th>Output</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in results %}
+      <tr>
+        <td>{{ row.context_size }}</td>
+        <td>
+          <span class="status-pill">{{ row.prompt_category }}</span>
+          <strong>{{ row.prompt_label or row.prompt_filename }}</strong>
+          <div class="micro-muted">{{ row.prompt_filename }}</div>
+        </td>
+        <td><span class="status-pill">{{ row.status }}</span></td>
+        <td>
+          {{ row.generation_tps or "—" }} gen tok/s
+          <div class="micro-muted">{{ row.prompt_eval_tps or "—" }} prompt tok/s</div>
+        </td>
+        <td>{{ row.peak_vram_mb or "—" }} MiB</td>
+        <td>
+          {% if row.output_raw %}
+            <details>
+              <summary>Show output</summary>
+              <pre>{{ row.output_clean_preview or row.output_raw }}</pre>
+            </details>
+          {% else %}
+            <span class="micro-muted">No output stored</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No context-scaling results stored for this run.</p>
+  {% endif %}
+</section>
+
+<p><a href="/eval/context-scaling">Back to Context Scaling</a></p>
+
+{% endblock %}

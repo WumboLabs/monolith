@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Agent Lab</p>
+    <h1>New Agent Session</h1>
+    <p class="page-subtitle">
+      Create a bounded planning session. This does not grant file access or command execution.
+    </p>
+  </div>
+</section>
+
+<form class="card form-grid" method="post" action="/agents/new">
+  <label>
+    Session name
+    <input name="name" required placeholder="Plan Monolith Agent Lab UI" />
+  </label>
+
+  <label>
+    Goal
+    <textarea name="goal" required rows="5" placeholder="Describe the task goal and boundaries."></textarea>
+  </label>
+
+  <label>
+    Model profile
+    <select name="model_profile_name">
+      <option value="">No model selected yet</option>
+      {% for profile in model_profiles %}
+      <option value="{{ profile.name }}">{{ profile.label or profile.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>
+    Mode
+    <select name="mode">
+      <option value="proposal_only">proposal_only</option>
+      <option value="read_only">read_only</option>
+      <option value="review_only">review_only</option>
+    </select>
+  </label>
+
+  <label>
+    Workspace label
+    <input name="workspace_label" placeholder="Monolith project" />
+  </label>
+
+  <label>
+    Workspace path
+    <input name="workspace_path" placeholder="~/Projects/local-llm/monolith" />
+  </label>
+
+  <label>
+    Context summary
+    <textarea name="context_summary" rows="4" placeholder="Optional visible context included in this session."></textarea>
+  </label>
+
+  <label>
+    Safety notes
+    <textarea name="safety_notes" rows="4" placeholder="Constraints, denied actions, approval boundaries."></textarea>
+  </label>
+
+  <div class="form-actions">
+    <a class="testbench-tab agent-action-button secondary" href="/agents"><span class="tab-kicker">←</span><span>Cancel</span></a>
+    <button class="testbench-tab agent-action-button" type="submit"><span class="tab-kicker">+</span><span>Create session</span></button>
+  </div>
+</form>
+{% endblock %}

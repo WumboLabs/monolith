@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title or APP_NAME }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <div id="appShell" class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <button id="sidebarToggle" class="sidebar-toggle" type="button" title="Collapse sidebar" aria-label="Collapse sidebar">
+          ☰
+        </button>
+
+        <div class="sidebar-brand-text">
+          <div class="sidebar-title">{{ APP_NAME }}</div>
+          <div class="sidebar-subtitle">{{ APP_SUBTITLE }}</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a href="/" data-short="D">Dashboard</a>
+        <a href="/chat" data-short="C">Chat</a>
+
+        <div class="nav-section">Lab</div>
+        <a href="/runs" data-short="R">Runs</a>
+        <a href="/models" data-short="M">Models</a>
+        <a href="/eval" data-short="T">Testbench</a>
+        <a href="/agents" data-short="A">Agent Lab</a>
+        <a href="/context" data-short="X">Context</a>
+
+        <div class="nav-section">System</div>
+        <a href="/workstation" data-short="W">Workstation</a>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <div>{{ APP_NAME }}</div>
+        <div>{{ APP_VERSION }}</div>
+      </footer>
+    </aside>
+
+    <main class="main-panel">
+      <section class="status-ticker" aria-label="Workstation status ticker">
+        <div class="ticker-label">SYSTEM</div>
+        <div class="ticker-window">
+          <div class="ticker-track">
+            <div class="ticker-content">
+              <span>CPU LOAD <strong id="statCpuLoad">--</strong></span>
+              <span>LOAD AVG <strong id="statLoadAvg">--</strong></span>
+              <span>RAM <strong id="statRam">--</strong></span>
+              <span>GPU <strong id="statGpuLoad">--</strong></span>
+              <span>VRAM <strong id="statVram">--</strong></span>
+              <span>TEMP <strong id="statGpuTemp">--</strong></span>
+              <span>POWER <strong id="statGpuPower">--</strong></span>
+            </div>
+
+            <div class="ticker-content" aria-hidden="true">
+              <span>CPU LOAD <strong id="statCpuLoadClone">--</strong></span>
+              <span>LOAD AVG <strong id="statLoadAvgClone">--</strong></span>
+              <span>RAM <strong id="statRamClone">--</strong></span>
+              <span>GPU <strong id="statGpuLoadClone">--</strong></span>
+              <span>VRAM <strong id="statVramClone">--</strong></span>
+              <span>TEMP <strong id="statGpuTempClone">--</strong></span>
+              <span>POWER <strong id="statGpuPowerClone">--</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="container">
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+  </div>
+
+<script>
+function setTextForIds(ids, value) {
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+
+    if (el) {
+      el.textContent = value;
+    }
+  });
+}
+
+function mibToGibText(mib) {
+  if (mib === null || mib === undefined || Number.isNaN(Number(mib))) {
+    return "--";
+  }
+
+  return (Number(mib) / 1024).toFixed(1);
+}
+
+async function updateWorkstationStats() {
+  try {
+    const response = await fetch("/api/workstation-stats", {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error("stats request failed");
+    }
+
+    const data = await response.json();
+
+    const cpu = data.cpu || {};
+    const memory = data.memory || {};
+    const gpu = data.gpu || {};
+
+    const cpuLoadText = `${cpu.load_percent ?? "--"}%`;
+    const loadAvgText = `${cpu.load_1m ?? "--"} / ${cpu.cores ?? "--"} threads`;
+
+    setTextForIds(["statCpuLoad", "statCpuLoadClone"], cpuLoadText);
+    setTextForIds(["statLoadAvg", "statLoadAvgClone"], loadAvgText);
+
+    if (memory.used_mib !== null && memory.total_mib !== null) {
+      const ramText = `${mibToGibText(memory.used_mib)} / ${mibToGibText(memory.total_mib)} GiB (${memory.used_percent}%)`;
+      setTextForIds(["statRam", "statRamClone"], ramText);
+    } else {
+      setTextForIds(["statRam", "statRamClone"], "--");
+    }
+
+    if (gpu.available) {
+      setTextForIds(["statGpuLoad", "statGpuLoadClone"], `${gpu.util_percent}%`);
+      setTextForIds(["statVram", "statVramClone"], `${mibToGibText(gpu.vram_used_mib)} / ${mibToGibText(gpu.vram_total_mib)} GiB (${gpu.vram_used_percent}%)`);
+      setTextForIds(["statGpuTemp", "statGpuTempClone"], `${gpu.temperature_c}°C`);
+      setTextForIds(["statGpuPower", "statGpuPowerClone"], gpu.power_w === null ? "--" : `${gpu.power_w} W`);
+    } else {
+      setTextForIds(["statGpuLoad", "statGpuLoadClone"], "--");
+      setTextForIds(["statVram", "statVramClone"], "--");
+      setTextForIds(["statGpuTemp", "statGpuTempClone"], "--");
+      setTextForIds(["statGpuPower", "statGpuPowerClone"], "--");
+    }
+  } catch (error) {
+    setTextForIds(["statCpuLoad", "statCpuLoadClone"], "error");
+    setTextForIds(["statLoadAvg", "statLoadAvgClone"], "error");
+    setTextForIds(["statRam", "statRamClone"], "error");
+    setTextForIds(["statGpuLoad", "statGpuLoadClone"], "error");
+    setTextForIds(["statVram", "statVramClone"], "error");
+    setTextForIds(["statGpuTemp", "statGpuTempClone"], "error");
+    setTextForIds(["statGpuPower", "statGpuPowerClone"], "error");
+  }
+}
+
+function setupSidebar() {
+  const shell = document.getElementById("appShell");
+  const toggle = document.getElementById("sidebarToggle");
+
+  const savedState = localStorage.getItem("monolith.sidebar.collapsed");
+  if (savedState === "true") {
+    shell.classList.add("sidebar-collapsed");
+  }
+
+  toggle.addEventListener("click", () => {
+    shell.classList.toggle("sidebar-collapsed");
+
+    localStorage.setItem(
+      "monolith.sidebar.collapsed",
+      shell.classList.contains("sidebar-collapsed") ? "true" : "false"
+    );
+  });
+
+  const currentPath = window.location.pathname;
+
+  document.querySelectorAll(".sidebar-nav a").forEach((link) => {
+    const href = link.getAttribute("href");
+
+    if (href === currentPath || (href !== "/" && currentPath.startsWith(href))) {
+      link.classList.add("active");
+    }
+  });
+}
+
+setupSidebar();
+updateWorkstationStats();
+setInterval(updateWorkstationStats, 2000);
+</script>
+</body>
+</html>

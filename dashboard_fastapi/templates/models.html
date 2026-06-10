@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Models</h1>
+
+<p class="muted">
+  Read-only model registry loaded from <code>{{ registry_path }}</code>. Download support remains metadata-only.
+</p>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Registry entries</div>
+    <div class="metric-value">{{ rows | length }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Runnable chat profiles</div>
+    <div class="metric-value">{{ chat_rows | length }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Active profiles</div>
+    <div class="metric-value">{{ active_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Local files found</div>
+    <div class="metric-value">{{ found_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Policy</div>
+    <div class="metric-value">Read-only</div>
+  </div>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Chat profiles</h2>
+      <p class="muted">Runnable profiles exposed in the Chat dropdown.</p>
+    </div>
+  </div>
+
+  <table class="models-table compact-table">
+    <thead>
+      <tr>
+        <th>Profile</th>
+        <th>Status</th>
+        <th>Model</th>
+        <th>Runtime</th>
+        <th>Local file</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in chat_rows %}
+      <tr class="{% if row.path_status.configured and not row.path_status.exists %}model-missing{% endif %}">
+        <td>
+          <code>{{ row.key }}</code>
+          <div class="micro-muted">{{ row.label or row.display_name or row.key }}</div>
+        </td>
+
+        <td>
+          {% if row.active is sameas true %}
+            <span class="status-pill status-good">ACTIVE</span>
+          {% else %}
+            <span class="status-pill">INACTIVE</span>
+          {% endif %}
+
+          {% if row.experimental %}
+            <span class="status-pill status-warn">EXPERIMENTAL</span>
+          {% endif %}
+
+          {% if row.download and row.download.enabled %}
+            <span class="status-pill status-warn">DL META</span>
+          {% else %}
+            <span class="status-pill">DL OFF</span>
+          {% endif %}
+        </td>
+
+        <td>
+          <strong>{{ row.model_family or row.family or "unknown" }}</strong>
+          <div class="micro-muted">{{ row.quant or "no quant" }}</div>
+          {% if row.model_key %}
+            <div class="micro-muted">{{ row.model_key }}</div>
+          {% endif %}
+        </td>
+
+        <td>
+          <div>ctx {{ row.ctx_size or "—" }}</div>
+          <div class="micro-muted">batch {{ row.batch_size or "—" }} / ubatch {{ row.ubatch_size or "—" }}</div>
+          <div class="micro-muted">ngl {{ row.gpu_layers or "—" }} · reasoning {{ row.reasoning or "—" }}</div>
+        </td>
+
+        <td>
+          {% if row.path_status.configured %}
+            {% if row.path_status.exists %}
+              <span class="status-pill status-good">FOUND</span>
+            {% else %}
+              <span class="status-pill status-bad">MISSING</span>
+            {% endif %}
+            <div class="file-path model-path-clamp" title="{{ row.path_status.path }}">{{ row.path_status.path }}</div>
+          {% else %}
+            <span class="muted">not configured</span>
+          {% endif %}
+        </td>
+
+        <td class="model-notes-cell">
+          {% if row.notes %}
+            <div class="notes-clamp" title="{{ row.notes | join(' / ') }}">
+              {% for note in row.notes %}
+                <div>{{ note }}</div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+
+          {% if row.tags %}
+            <div class="model-tags">
+              {% for tag in row.tags %}
+                <span class="status-pill">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Catalog models</h2>
+      <p class="muted">Registry notes for models not necessarily exposed directly in Chat.</p>
+    </div>
+  </div>
+
+  <table class="models-table compact-table">
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Model</th>
+        <th>Status</th>
+        <th>Launcher</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in catalog_rows %}
+      <tr>
+        <td><code>{{ row.key }}</code></td>
+
+        <td>
+          <strong>{{ row.display_name or row.label or row.key }}</strong>
+          <div class="micro-muted">{{ row.family or row.model_family or "unknown family" }}</div>
+          {% if row.quant %}
+            <div class="micro-muted">{{ row.quant }}</div>
+          {% endif %}
+        </td>
+
+        <td>
+          <span class="status-pill">{{ row.status or "CATALOG" }}</span>
+          {% if row.experimental %}
+            <span class="status-pill status-warn">EXPERIMENTAL</span>
+          {% endif %}
+        </td>
+
+        <td>
+          {{ row.launcher or "—" }}
+          {% if row.cache_type_k or row.cache_type_v %}
+            <div class="micro-muted">KV {{ row.cache_type_k or "—" }} / {{ row.cache_type_v or "—" }}</div>
+          {% endif %}
+        </td>
+
+        <td class="model-notes-cell">
+          {% if row.notes %}
+            <div class="notes-clamp" title="{{ row.notes | join(' / ') }}">
+              {% for note in row.notes %}
+                <div>{{ note }}</div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% endblock %}

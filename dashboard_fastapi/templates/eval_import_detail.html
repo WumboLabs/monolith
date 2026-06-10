@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>Quant Lab Import #{{ suite.id }}</h1>
+    <p class="muted">
+      {{ suite.model_label }} · {{ suite.suite_name }} · {{ suite.timestamp_local }}
+    </p>
+  </div>
+
+  <div class="detail-status-stack">
+    <span class="status-pill status-good">IMPORTED</span>
+    <span class="status-pill">READ-ONLY</span>
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Prompts captured</div>
+    <div class="metric-value">{{ summary.captured_count or 0 }} / {{ summary.prompt_count or 0 }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Avg gen tok/s</div>
+    <div class="metric-value">{{ summary.avg_generation_tps or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Avg prompt tok/s</div>
+    <div class="metric-value">{{ summary.avg_prompt_eval_tps or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Context</div>
+    <div class="metric-value">{{ suite.ctx_size or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Max tokens</div>
+    <div class="metric-value">{{ suite.max_tokens or "n/a" }}</div>
+  </div>
+</section>
+
+<section class="run-file-strip">
+  <span class="micro-muted">Source:</span>
+  <code>{{ suite.source_report_path }}</code>
+  <span class="micro-muted">SHA256 {{ suite.source_report_sha256 }}</span>
+  <a href="/eval">Back to Local Eval</a>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Suite metadata</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>Model</th><td>{{ suite.model_label }}</td></tr>
+      <tr><th>Model path</th><td>{{ suite.model_path }}</td></tr>
+      <tr><th>Host</th><td>{{ suite.host }}</td></tr>
+      <tr><th>Backend</th><td>{{ suite.backend }}</td></tr>
+      <tr><th>llama-cli</th><td>{{ suite.llama_cli }}</td></tr>
+      <tr><th>GPU layers</th><td>{{ suite.gpu_layers }}</td></tr>
+      <tr><th>Temperature</th><td>{{ suite.temperature }}</td></tr>
+      <tr><th>System prompt</th><td>{{ suite.system_prompt_path }}</td></tr>
+      <tr><th>Prompt root</th><td>{{ suite.prompt_root }}</td></tr>
+      <tr><th>Notes</th><td>{{ suite.notes }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Prompt results</h2>
+      <p class="muted">Imported per-prompt outputs from the Quant Lab report.</p>
+    </div>
+  </div>
+
+  <table class="compact-table eval-table eval-results-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Prompt</th>
+        <th>Capture</th>
+        <th>Speed</th>
+        <th>Output</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in prompts %}
+      <tr>
+        <td>{{ row.prompt_order }}</td>
+        <td>
+          <span class="status-pill">{{ row.category }}</span>
+          <strong>{{ row.prompt_name }}</strong>
+          <div class="micro-muted">{{ row.prompt_file }}</div>
+        </td>
+        <td>
+          {% if row.passed_basic_capture %}
+            <span class="status-pill status-good">CAPTURED</span>
+          {% else %}
+            <span class="status-pill status-bad">CHECK</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ row.generation_tps or "—" }} gen tok/s
+          <div class="micro-muted">{{ row.prompt_eval_tps or "—" }} prompt tok/s</div>
+        </td>
+        <td>
+          <a href="#output-{{ row.id }}">jump to output</a>
+        </td>
+      </tr>
+
+      <tr id="output-{{ row.id }}" class="eval-output-row">
+        <td colspan="5">
+          <details class="eval-output-details">
+            <summary>
+              Clean output for {{ row.category }} / {{ row.prompt_name }}
+              {% if row.clean_output_changed %}
+                <span class="status-pill">CLEANED</span>
+              {% endif %}
+            </summary>
+
+            <pre>{{ row.clean_output_text or row.output_text }}</pre>
+
+            {% if row.clean_output_changed %}
+            <details class="eval-raw-output-details">
+              <summary>Show raw captured output</summary>
+              <pre>{{ row.output_text }}</pre>
+            </details>
+            {% endif %}
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% endblock %}

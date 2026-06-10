@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Context scaling</h1>
+
+<section class="cards">
+  {% for family in family_summary %}
+  <div class="card">
+    <div class="metric-label">{{ family.family }}</div>
+    <div class="metric-value">{{ family.runs }}</div>
+    <div class="metric-label">
+      max ctx {{ family.max_ctx_size or "n/a" }},
+      avg gen
+      {% if family.avg_generation_tps is not none %}
+        {{ "%.1f"|format(family.avg_generation_tps) }}
+      {% else %}
+        n/a
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+
+<section class="dashboard-panel controlled-context-panel">
+  <div class="section-heading-row">
+    <div>
+      <h2>Controlled Context Scaling</h2>
+      <p class="muted">
+        Results from the controlled Monolith / Quant Lab context-scaling workflow.
+      </p>
+    </div>
+
+    <a href="/eval/context-scaling">Open Context Scaling →</a>
+  </div>
+
+  {% if controlled_context and controlled_context.available %}
+  <section class="cards">
+    <div class="card">
+      <div class="metric-label">Controlled runs</div>
+      <div class="metric-value">{{ controlled_context.run_count }}</div>
+    </div>
+
+    <div class="card">
+      <div class="metric-label">Controlled results</div>
+      <div class="metric-value">{{ controlled_context.result_count }}</div>
+    </div>
+
+    <div class="card">
+      <div class="metric-label">Max context tested</div>
+      <div class="metric-value">{{ controlled_context.max_context or "—" }}</div>
+    </div>
+
+    <div class="card">
+      <div class="metric-label">Max peak VRAM</div>
+      <div class="metric-value">
+        {% if controlled_context.max_peak_vram_mb %}
+          {{ controlled_context.max_peak_vram_mb }} MiB
+        {% else %}
+          —
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="metric-label">Latest model</div>
+      <div class="metric-value metric-small">
+        {% if controlled_context.latest_run %}
+          {{ controlled_context.latest_run.model_label or controlled_context.latest_run.model_profile_name }}
+        {% else %}
+          —
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <h3>VRAM fit summary</h3>
+
+  {% if controlled_context.fit_rows %}
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>Context</th>
+        <th>Results</th>
+        <th>Captured</th>
+        <th>Issues</th>
+        <th>Avg gen tok/s</th>
+        <th>Avg prompt tok/s</th>
+        <th>Max peak VRAM</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in controlled_context.fit_rows %}
+      <tr>
+        <td><strong>{{ row.context_size }}</strong></td>
+        <td>{{ row.result_count }}</td>
+        <td>{{ row.captured_count or 0 }}</td>
+        <td>
+          {% if row.issue_count %}
+            <span class="status-pill status-bad">{{ row.issue_count }}</span>
+          {% else %}
+            <span class="status-pill status-good">0</span>
+          {% endif %}
+        </td>
+        <td>{{ row.avg_generation_tps or "—" }}</td>
+        <td>{{ row.avg_prompt_eval_tps or "—" }}</td>
+        <td>
+          {% if row.max_peak_vram_mb %}
+            {{ row.max_peak_vram_mb }} MiB
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No controlled context-scaling results yet.</p>
+  {% endif %}
+
+  <h3>Latest controlled results</h3>
+
+  {% if controlled_context.latest_results %}
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>Run</th>
+        <th>Model</th>
+        <th>Ctx</th>
+        <th>Prompt</th>
+        <th>Status</th>
+        <th>Speed</th>
+        <th>VRAM</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in controlled_context.latest_results %}
+      <tr>
+        <td>#{{ row.context_scaling_run_id }}</td>
+        <td>
+          <strong>{{ row.model_label or row.model_profile_name }}</strong>
+          <div class="micro-muted">{{ row.cache_mode }}</div>
+        </td>
+        <td>{{ row.context_size }}</td>
+        <td>
+          <span class="status-pill">{{ row.prompt_category }}</span>
+          <div class="micro-muted">{{ row.prompt_filename }}</div>
+        </td>
+        <td><span class="status-pill">{{ row.status }}</span></td>
+        <td>
+          {{ row.generation_tps or "—" }} gen tok/s
+          <div class="micro-muted">{{ row.prompt_eval_tps or "—" }} prompt tok/s</div>
+        </td>
+        <td>
+          {% if row.peak_vram_mb %}
+            {{ row.peak_vram_mb }} MiB
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          <a href="/eval/context-scaling/{{ row.context_scaling_run_id }}">open</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No controlled context-scaling result rows yet.</p>
+  {% endif %}
+
+  {% else %}
+    <p class="muted">Controlled Context Scaling tables are not available yet.</p>
+  {% endif %}
+</section>
+
+
+
+<section class="chart-grid">
+  <div class="chart-card">
+    <h2>Generation tok/s</h2>
+    <canvas id="generationChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h2>Prompt eval tok/s</h2>
+    <canvas id="promptChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h2>Peak VRAM MiB</h2>
+    <canvas id="vramChart"></canvas>
+  </div>
+</section>
+
+<h2>Runs</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Ctx</th>
+      <th>Family</th>
+      <th>Launcher</th>
+      <th>Prompt tok/s</th>
+      <th>Gen tok/s</th>
+      <th>VRAM MiB</th>
+      <th>Trust</th>
+      <th>Tag</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td><a href="/runs/{{ row.id }}">{{ row.id }}</a></td>
+      <td>{{ row.ctx_size or "" }}</td>
+      <td>{{ row.prompt_family }}</td>
+      <td>{{ row.launcher }}</td>
+      <td>{{ row.prompt_eval_tps or "" }}</td>
+      <td>{{ row.generation_tps or "" }}</td>
+      <td>{{ row.vram_peak_mb or "" }}</td>
+      <td>{{ row.overall_trust or "" }}</td>
+      <td>{{ row.winner_tag or "" }}</td>
+      <td class="notes">{{ row.notes }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+const rows = {{ chart_rows | tojson }};
+
+function groupedDatasets(key) {
+  const groups = {};
+
+  for (const row of rows) {
+    const family = row.prompt_family || "other";
+
+    if (!groups[family]) {
+      groups[family] = [];
+    }
+
+    if (row.ctx_size !== null && row[key] !== null) {
+      groups[family].push({
+        x: row.ctx_size,
+        y: row[key],
+        run_id: row.id,
+        launcher: row.launcher
+      });
+    }
+  }
+
+  return Object.entries(groups).map(([family, points]) => ({
+    label: family,
+    data: points.sort((a, b) => a.x - b.x),
+    tension: 0.2
+  }));
+}
+
+function makeChart(canvasId, label, key) {
+  const ctx = document.getElementById(canvasId);
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: groupedDatasets(key)
+    },
+    options: {
+      parsing: false,
+      responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            afterLabel: function(context) {
+              const point = context.raw;
+              return "run " + point.run_id + " / " + point.launcher;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Context size' }
+        },
+        y: {
+          title: { display: true, text: label }
+        }
+      }
+    }
+  });
+}
+
+makeChart('generationChart', 'Generation tok/s', 'generation_tps');
+makeChart('promptChart', 'Prompt eval tok/s', 'prompt_eval_tps');
+makeChart('vramChart', 'Peak VRAM MiB', 'vram_peak_mb');
+</script>
+
+{% endblock %}

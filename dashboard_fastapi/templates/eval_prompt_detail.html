@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>{{ prompt.title }}</h1>
+    <p class="muted">
+      {{ prompt.filename }} · {{ prompt.suite }} / {{ prompt.category }}
+    </p>
+  </div>
+
+  <div class="detail-status-stack">
+    <span class="status-pill status-good">READ-ONLY</span>
+    <span class="status-pill">{{ prompt.category_label }}</span>
+    <span class="status-pill eval-risk-{{ prompt.risk }}">stakes {{ prompt.risk }}</span>
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Suite</div>
+    <div class="metric-value metric-small">{{ prompt.suite }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Category</div>
+    <div class="metric-value metric-small">{{ prompt.category_label }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Size</div>
+    <div class="metric-value">{{ prompt.size_bytes }} B</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Modified</div>
+    <div class="metric-value metric-small">{{ prompt.modified_local }}</div>
+  </div>
+</section>
+
+<section class="dashboard-panel eval-prompt-summary">
+  <h2>Prompt purpose</h2>
+  <p>{{ prompt.summary or prompt.category_purpose }}</p>
+
+  <h3>Scoring emphasis</h3>
+  <p class="muted">{{ prompt.scoring_focus }}</p>
+</section>
+
+<section class="run-file-strip">
+  <span class="micro-muted">Path:</span>
+  <code>{{ prompt.relative_path }}</code>
+  <a href="/eval">Back to Local Eval</a>
+</section>
+
+<section class="detail-block">
+  <div class="section-heading-row">
+    <div>
+      <h2>Prompt content</h2>
+      <p class="muted">Read-only seed prompt for future structured evaluation runs.</p>
+    </div>
+  </div>
+
+  <div class="detail-response detail-text-block eval-prompt-content">
+    <pre>{{ prompt.content }}</pre>
+  </div>
+</section>
+
+{% endblock %}

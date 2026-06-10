@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Agent Lab</p>
+    <h1>Agent Sessions</h1>
+    <p class="page-subtitle">
+      Human-controlled planning sessions for local model-assisted work. No execution layer is enabled.
+    </p>
+  </div>
+  <div class="page-actions">
+    <a class="testbench-tab agent-action-button" href="/agents/new"><span class="tab-kicker">+</span><span>New session</span></a>
+  </div>
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h2>Sessions</h2>
+      <p class="muted">Saved Agent Lab task sessions.</p>
+    </div>
+  </div>
+
+  {% if sessions %}
+  <div class="table-wrap">
+    <table class="compact-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Name</th>
+          <th>Mode</th>
+          <th>Model</th>
+          <th>Created</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in sessions %}
+        <tr>
+          <td><a href="/agents/{{ session.id }}">#{{ session.id }}</a></td>
+          <td><span class="status-pill">{{ session.status }}</span></td>
+          <td>
+            <strong>{{ session.name }}</strong>
+            <div class="muted">{{ session.goal }}</div>
+          </td>
+          <td>{{ session.mode }}</td>
+          <td>{{ session.model_label or session.model_profile_name or "—" }}</td>
+          <td>{{ session.created_at }}</td>
+          <td>{{ session.updated_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h3>No agent sessions yet</h3>
+    <p>Create the first session to start planning inside Agent Lab.</p>
+    <a class="testbench-tab agent-action-button" href="/agents/new"><span class="tab-kicker">+</span><span>Create session</span></a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Safety boundary</h2>
+  <p>
+    Agent Lab currently supports planning metadata only. It does not execute commands,
+    inspect files, apply patches, run tools, or start background agents.
+  </p>
+</section>
+{% endblock %}

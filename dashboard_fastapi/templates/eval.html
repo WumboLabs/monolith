@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Local Eval</h1>
+
+{% include "partials/testbench_tabs.html" %}
+
+<p class="muted">
+  Read-only prompt library for structured local model evaluation. Execution is not enabled yet.
+</p>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Suite</div>
+    <div class="metric-value metric-small">core-v2</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Categories</div>
+    <div class="metric-value">{{ library.categories | length }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Prompt files</div>
+    <div class="metric-value">{{ library.prompts | length }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Mode</div>
+    <div class="metric-value metric-small">Read-only</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Root</div>
+    <div class="metric-value metric-small">{{ prompt_root }}</div>
+  </div>
+</section>
+
+<section class="dashboard-panel eval-philosophy">
+  <h2>Evaluation philosophy</h2>
+  <p>
+    The core-v2 suite is designed to test practical local-model usefulness rather than one-off trivia recall.
+    A model should not be rejected for obscure ignorance. It should be penalized when it confidently fabricates.
+  </p>
+  <div class="dashboard-mini-metrics">
+    <span>Safety first</span>
+    <span>Technical usefulness</span>
+    <span>Honesty under uncertainty</span>
+    <span>Instruction following</span>
+    <span>Speed/VRAM tracked separately</span>
+  </div>
+</section>
+
+{% if not library.exists %}
+<section class="run-alert">
+  <strong>Prompt suite missing.</strong>
+  Expected prompt root does not exist: <code>{{ prompt_root }}</code>
+</section>
+{% endif %}
+
+
+
+<section class="dashboard-panel eval-runner-panel">
+  <div class="section-heading-row">
+    <div>
+      <h2>Run core-v2 suite</h2>
+      <p class="muted">Controlled Quant Lab runner. Uses active Monolith model profiles and imports the generated report on completion.</p>
+    </div>
+  </div>
+
+  <form id="evalRunnerForm" class="eval-runner-form">
+    <label>
+      Model profile
+      <select id="evalProfile" required>
+        {% for profile in eval_profiles %}
+        <option value="{{ profile.key }}" data-ctx="{{ profile.ctx_size }}" {% if not profile.model_exists %}disabled{% endif %}>
+          {{ profile.label }}{% if not profile.model_exists %} — missing file{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      Include
+      <select id="evalInclude">
+        <option value="">All core-v2 prompts</option>
+        <option value="honesty">Honesty only</option>
+        <option value="linux">Linux only</option>
+        <option value="docker">Docker only</option>
+        <option value="zfs">ZFS only</option>
+        <option value="coding">Coding only</option>
+        <option value="config">Config only</option>
+        <option value="long-context">Long-context only</option>
+        <option value="niche">Niche factual only</option>
+      </select>
+    </label>
+
+    <label>
+      Context
+      <input id="evalCtx" type="number" min="1024" max="65536" value="8192">
+    </label>
+
+    <label>
+      Max tokens
+      <input id="evalMaxTokens" type="number" min="64" max="4096" value="600">
+    </label>
+
+    <label>
+      Temperature
+      <input id="evalTemp" type="number" min="0" max="2" step="0.1" value="0.2">
+    </label>
+
+    <button id="evalRunButton" type="submit" class="send-button">Run suite</button>
+    <button id="evalAbortButton" type="button" class="chat-action-button eval-abort-button" disabled>Stop run</button>
+    <button id="evalCleanupButton" type="button" class="chat-action-button eval-cleanup-button">Clear stale eval process</button>
+  </form>
+
+  <div id="evalTaskStatus" class="eval-task-status hidden">
+    <div class="dashboard-mini-metrics">
+      <span>Status <strong id="evalTaskState">queued</strong></span>
+      <span>Elapsed <strong id="evalTaskElapsed">0:00</strong></span>
+      <span>ETA <strong id="evalTaskEta">calculating</strong></span>
+      <span>Progress <strong id="evalTaskProgress">0 / 0</strong></span>
+      <span>Current <strong id="evalTaskCurrent">—</strong></span>
+    </div>
+
+    <p class="muted" id="evalTaskMessage">Waiting...</p>
+
+    <pre id="evalTaskOutput" class="eval-task-output"></pre>
+
+    <a id="evalTaskDetailLink" class="hidden" href="#">Open imported result</a>
+  </div>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Imported Quant Lab runs</h2>
+      <p class="muted">Read-only imported core-v2 suite reports from Quant Lab.</p>
+    </div>
+  </div>
+
+  <section class="cards">
+    <div class="card">
+      <div class="metric-label">Imported suites</div>
+      <div class="metric-value">{{ import_summary.suite_count }}</div>
+    </div>
+
+    <div class="card">
+      <div class="metric-label">Prompt results</div>
+      <div class="metric-value">{{ import_summary.prompt_result_count }}</div>
+    </div>
+
+    <div class="card">
+      <div class="metric-label">Import mode</div>
+      <div class="metric-value metric-small">Read-only</div>
+    </div>
+  </section>
+
+  {% if import_summary.available and import_summary.latest %}
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Model</th>
+        <th>Suite</th>
+        <th>Runtime</th>
+        <th>Prompts</th>
+        <th>Speed</th>
+        <th>Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in import_summary.latest %}
+      <tr>
+        <td><a href="/eval/imports/{{ row.id }}">#{{ row.id }}</a></td>
+        <td>
+          <strong>{{ row.model_label }}</strong>
+          <div class="micro-muted">{{ row.host }} · {{ row.backend }}</div>
+        </td>
+        <td>
+          <span class="status-pill">{{ row.suite_name }}</span>
+          <div class="micro-muted">{{ row.timestamp_local }}</div>
+        </td>
+        <td>
+          ctx {{ row.ctx_size or "—" }}
+          <div class="micro-muted">max {{ row.max_tokens or "—" }} · temp {{ row.temperature or "—" }}</div>
+        </td>
+        <td>
+          {{ row.captured_count or 0 }} / {{ row.prompt_count or 0 }} captured
+        </td>
+        <td>
+          {{ row.avg_generation_tps or "—" }} gen tok/s
+          <div class="micro-muted">{{ row.avg_prompt_eval_tps or "—" }} prompt tok/s</div>
+        </td>
+        <td>
+          <div class="file-path model-path-clamp" title="{{ row.source_report_path }}">
+            {{ row.source_report_path }}
+          </div>
+          <div class="micro-muted">{{ row.source_report_sha256[:12] }}...</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No Quant Lab suite reports imported yet.</p>
+  {% endif %}
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Prompt categories</h2>
+      <p class="muted">Core evaluation areas for balanced local model testing.</p>
+    </div>
+  </div>
+
+  <div class="eval-category-grid">
+    {% for group in library.category_summary %}
+    <a class="eval-category-card" href="#category-{{ group.category }}">
+      <div class="dashboard-run-card-top">
+        <span class="status-pill">{{ group.label }}</span>
+        <span class="status-pill eval-risk-{{ group.risk }}">stakes {{ group.risk }}</span>
+      </div>
+
+      <strong>{{ group.count }} prompt{% if group.count != 1 %}s{% endif %}</strong>
+      <p>{{ group.purpose }}</p>
+      <div class="micro-muted">{{ group.scoring_focus }}</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="model-section">
+  <div class="section-heading-row">
+    <div>
+      <h2>Prompt files</h2>
+      <p class="muted">Seed prompt suite for future Local Eval runs.</p>
+    </div>
+  </div>
+
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>Prompt</th>
+        <th>Category</th>
+        <th>Purpose</th>
+        <th>Stakes</th>
+        <th>Modified</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for prompt in library.prompts %}
+      <tr id="category-{{ prompt.category }}">
+        <td>
+          <a href="/eval/prompts/{{ prompt.category }}/{{ prompt.filename }}">
+            <strong>{{ prompt.title }}</strong>
+          </a>
+          <div class="micro-muted">{{ prompt.filename }}</div>
+        </td>
+        <td><span class="status-pill">{{ prompt.category_label }}</span></td>
+        <td>
+          <div>{{ prompt.summary or prompt.category_purpose }}</div>
+          <div class="micro-muted">{{ prompt.scoring_focus }}</div>
+        </td>
+        <td><span class="status-pill eval-risk-{{ prompt.risk }}">{{ prompt.risk }}</span></td>
+        <td class="nowrap">{{ prompt.modified_local }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Current Local Eval guardrails</h2>
+
+  <ul class="eval-guardrails">
+    <li>No prompt editing from the UI.</li>
+    <li>No model execution from this page yet.</li>
+    <li>No arbitrary path browsing.</li>
+    <li>No database schema changes in this milestone.</li>
+    <li>Prompt quality scoring remains manual for now.</li>
+    <li>Future task progress should show elapsed time, ETA, estimated finish, current prompt/model, tokens/sec, and peak VRAM.</li>
+  </ul>
+</section>
+
+
+<script>
+const evalRunnerForm = document.getElementById("evalRunnerForm");
+const evalRunButton = document.getElementById("evalRunButton");
+const evalTaskStatus = document.getElementById("evalTaskStatus");
+const evalTaskState = document.getElementById("evalTaskState");
+const evalTaskElapsed = document.getElementById("evalTaskElapsed");
+const evalTaskEta = document.getElementById("evalTaskEta");
+const evalTaskProgress = document.getElementById("evalTaskProgress");
+const evalTaskCurrent = document.getElementById("evalTaskCurrent");
+const evalTaskMessage = document.getElementById("evalTaskMessage");
+const evalTaskOutput = document.getElementById("evalTaskOutput");
+const evalTaskDetailLink = document.getElementById("evalTaskDetailLink");
+const evalAbortButton = document.getElementById("evalAbortButton");
+const evalCleanupButton = document.getElementById("evalCleanupButton");
+let currentEvalTaskId = null;
+
+async function pollEvalTask(taskId) {
+  const response = await fetch(`/api/eval/tasks/${taskId}`);
+  const data = await response.json();
+
+  evalTaskState.textContent = data.status || "unknown";
+  evalTaskElapsed.textContent = data.elapsed_display || "0:00";
+  evalTaskEta.textContent = data.eta_display || "calculating";
+  evalTaskProgress.textContent = `${data.completed_items || 0} / ${data.total_items || 0}`;
+  evalTaskCurrent.textContent = data.current_item || "—";
+  evalTaskMessage.textContent = data.last_message || "";
+  evalTaskOutput.textContent = data.stdout_tail || "";
+
+  const resultUrl =
+    data.result_url ||
+    data.detail_url ||
+    (data.suite_run_id ? `/eval/imports/${data.suite_run_id}` : null) ||
+    (data.import_id ? `/eval/imports/${data.import_id}` : null) ||
+    (data.imported_suite_run_id ? `/eval/imports/${data.imported_suite_run_id}` : null);
+
+  if (resultUrl) {
+    evalTaskDetailLink.href = resultUrl;
+    evalTaskDetailLink.classList.remove("hidden");
+  }
+
+  if (data.status === "completed") {
+    evalRunButton.disabled = false;
+    evalAbortButton.disabled = true;
+    if (evalCleanupButton) evalCleanupButton.disabled = false;
+    evalRunButton.textContent = "Run suite";
+    evalTaskMessage.textContent = "Completed. Opening imported result...";
+
+    window.setTimeout(() => {
+      if (resultUrl) {
+        window.location.href = resultUrl;
+      } else {
+        window.location.reload();
+      }
+    }, 750);
+
+    return;
+  }
+
+  if (data.status === "aborted") {
+    evalRunButton.disabled = false;
+    evalAbortButton.disabled = true;
+    if (evalCleanupButton) evalCleanupButton.disabled = false;
+    evalRunButton.textContent = "Run suite";
+    evalTaskMessage.textContent = "Aborted. Refreshing Local Eval...";
+
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 750);
+
+    return;
+  }
+
+  if (data.status === "failed") {
+    evalRunButton.disabled = false;
+    evalAbortButton.disabled = true;
+    if (evalCleanupButton) evalCleanupButton.disabled = false;
+    evalRunButton.textContent = "Run suite";
+    return;
+  }
+
+  setTimeout(() => pollEvalTask(taskId), 1500);
+}
+
+
+if (evalCleanupButton) {
+  evalCleanupButton.addEventListener("click", async () => {
+    evalCleanupButton.disabled = true;
+    evalTaskStatus.classList.remove("hidden");
+    evalTaskState.textContent = "cleanup";
+    evalTaskElapsed.textContent = "—";
+    evalTaskEta.textContent = "—";
+    evalTaskProgress.textContent = "—";
+    evalTaskCurrent.textContent = "stale process scan";
+    evalTaskMessage.textContent = "Checking for stale Local Eval processes...";
+    evalTaskOutput.textContent = "";
+
+    try {
+      const response = await fetch("/api/eval/cleanup-stale", {
+        method: "POST"
+      });
+
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error(responseText || "Server returned a non-JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || responseText || "Failed to clean stale eval processes");
+      }
+
+      evalTaskState.textContent = "cleanup complete";
+      evalTaskMessage.textContent = `Cleanup complete. Candidates: ${data.candidate_count || 0}. Cleaned: ${data.cleaned_count || 0}. Refreshing...`;
+      evalTaskOutput.textContent = JSON.stringify(data.cleaned || [], null, 2);
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 900);
+    } catch (error) {
+      evalCleanupButton.disabled = false;
+      evalTaskState.textContent = "failed";
+      evalTaskMessage.textContent = error.message;
+    }
+  });
+}
+
+if (evalAbortButton) {
+  evalAbortButton.addEventListener("click", async () => {
+    if (!currentEvalTaskId) {
+      evalTaskMessage.textContent = "No active eval task to stop.";
+      return;
+    }
+
+    evalAbortButton.disabled = true;
+    evalTaskMessage.textContent = "Abort requested...";
+
+    try {
+      const response = await fetch(`/api/eval/tasks/${currentEvalTaskId}/abort`, {
+        method: "POST"
+      });
+
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error(responseText || "Server returned a non-JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || responseText || "Failed to abort eval task");
+      }
+
+      evalTaskState.textContent = data.status || "aborting";
+      evalTaskMessage.textContent = data.last_message || "Abort requested.";
+      evalTaskOutput.textContent = data.stdout_tail || evalTaskOutput.textContent;
+    } catch (error) {
+      evalAbortButton.disabled = false;
+      evalTaskMessage.textContent = error.message;
+    }
+  });
+}
+
+if (evalRunnerForm) {
+  evalRunnerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    evalRunButton.disabled = true;
+    evalAbortButton.disabled = true;
+    if (evalCleanupButton) evalCleanupButton.disabled = true;
+    evalRunButton.textContent = "Running...";
+
+    evalTaskStatus.classList.remove("hidden");
+    evalTaskDetailLink.classList.add("hidden");
+    evalTaskOutput.textContent = "";
+    evalTaskMessage.textContent = "Submitting task...";
+
+    const payload = {
+      profile: document.getElementById("evalProfile").value,
+      include: document.getElementById("evalInclude").value,
+      ctx_size: Number(document.getElementById("evalCtx").value),
+      max_tokens: Number(document.getElementById("evalMaxTokens").value),
+      temperature: Number(document.getElementById("evalTemp").value)
+    };
+
+    try {
+      const response = await fetch("/api/eval/run-core-v2", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error(responseText || "Server returned a non-JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || responseText || "Failed to start eval task");
+      }
+
+      currentEvalTaskId = data.task_id;
+      evalAbortButton.disabled = false;
+      if (evalCleanupButton) evalCleanupButton.disabled = true;
+      pollEvalTask(data.task_id);
+    } catch (error) {
+      evalRunButton.disabled = false;
+      evalRunButton.textContent = "Run suite";
+      evalTaskState.textContent = "failed";
+      evalTaskMessage.textContent = error.message;
+    }
+  });
+}
+</script>
+
+
+{% endblock %}

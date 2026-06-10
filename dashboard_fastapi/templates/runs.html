@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Runs</h1>
+
+<p class="muted">
+  Latest saved model runs, chat attempts, context tests, scores, and failed launches.
+</p>
+
+<table class="runs-table compact-table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Status</th>
+      <th>Time</th>
+      <th>Model</th>
+      <th>Category</th>
+      <th>Ctx</th>
+      <th>Tokens</th>
+      <th>Speed</th>
+      <th>VRAM</th>
+      <th>Score</th>
+      <th>Files</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    {% set failed = row.exit_code is not none and row.exit_code != 0 %}
+    {% set scored = row.overall_trust is not none or row.winner_tag %}
+    <tr class="{% if failed %}run-failed{% endif %}">
+      <td>
+        <a class="run-id-link" href="/runs/{{ row.id }}">#{{ row.id }}</a>
+      </td>
+
+      <td>
+        {% if failed %}
+          <span class="status-pill status-bad">FAILED</span>
+          <div class="micro-muted">exit {{ row.exit_code }}</div>
+        {% else %}
+          <span class="status-pill status-good">OK</span>
+        {% endif %}
+      </td>
+
+      <td class="nowrap">
+        {{ row.timestamp_local }}
+      </td>
+
+      <td>
+        <strong>{{ row.model_display_name or row.profile_name or row.launcher }}</strong>
+        <div class="micro-muted">
+          {{ row.profile_name or row.launcher }}
+          {% if row.quant %}
+            · {{ row.quant }}
+          {% endif %}
+        </div>
+      </td>
+
+      <td>
+        <span class="status-pill">{{ row.prompt_category or "unknown" }}</span>
+        <div class="micro-muted">{{ row.prompt_family or "" }}</div>
+      </td>
+
+      <td>{{ row.ctx_size or "" }}</td>
+
+      <td>
+        <div>in {{ row.prompt_tokens or "—" }}</div>
+        <div>out {{ row.output_tokens or "—" }}</div>
+      </td>
+
+      <td>
+        <div>{{ row.generation_tps or "—" }} tok/s</div>
+        <div class="micro-muted">{{ row.total_wall_seconds or "—" }}s</div>
+      </td>
+
+      <td>
+        {% if row.vram_peak_mb %}
+          {{ row.vram_peak_mb }} MiB
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>
+        {% if scored %}
+          <span class="status-pill status-good">SCORED</span>
+          {% if row.overall_trust is not none %}
+            <div class="micro-muted">trust {{ row.overall_trust }}</div>
+          {% endif %}
+          {% if row.winner_tag %}
+            <div class="micro-muted">{{ row.winner_tag }}</div>
+          {% endif %}
+        {% else %}
+          <span class="status-pill">UNSCORED</span>
+        {% endif %}
+      </td>
+
+      <td>
+        <a href="/runs/{{ row.id }}">detail</a>
+        {% if row.raw_log_path %}
+          <div><a href="/file?path={{ row.raw_log_path }}">raw</a></div>
+        {% endif %}
+        {% if row.response_path %}
+          <div><a href="/file?path={{ row.response_path }}">response</a></div>
+        {% endif %}
+      </td>
+
+      <td class="notes runs-notes" title="{{ row.notes or '' }}">
+        <div class="notes-clamp">
+          {{ row.notes or "" }}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

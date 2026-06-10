@@ -1,0 +1,25 @@
+<nav class="testbench-tabs" aria-label="Testbench sections">
+  <a
+    href="/eval"
+    class="testbench-tab {% if active_testbench_tab == 'core' %}active{% endif %}"
+  >
+    <span class="tab-kicker">01</span>
+    <span>Core</span>
+  </a>
+
+  <a
+    href="/eval/context-scaling"
+    class="testbench-tab {% if active_testbench_tab == 'scaling' %}active{% endif %}"
+  >
+    <span class="tab-kicker">02</span>
+    <span>Scaling</span>
+  </a>
+
+  <a
+    href="/eval/hermes"
+    class="testbench-tab {% if active_testbench_tab == 'hermes' %}active{% endif %}"
+  >
+    <span class="tab-kicker">03</span>
+    <span>Agents</span>
+  </a>
+</nav>

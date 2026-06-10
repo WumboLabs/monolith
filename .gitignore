@@ -1,0 +1,256 @@
+# ============================================================================
+# Monolith .gitignore
+# Conservative public/private GitHub preflight baseline
+# ============================================================================
+
+# Python / virtualenv
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.token
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+known_hosts
+
+# Local runtime databases
+data/*.sqlite
+data/*.sqlite-*
+data/*.db
+data/*.db-*
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
+# Runtime logs / temp / caches
+logs/
+log/
+tmp/
+temp/
+.cache/
+cache/
+*.log
+*.out
+*.err
+
+# Local model files and ML artifacts
+models/
+model-cache/
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Evaluation outputs that may contain local paths/private details
+results/
+exports/
+reports/
+runs/
+raw_outputs/
+eval_outputs/
+
+# Screenshots / images
+# Keep screenshots private by default. Add intentional public screenshots later.
+screenshots/
+private-screenshots/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+
+# Node/frontend artifacts if added later
+node_modules/
+dist/
+build/
+.next/
+vite.config.*.timestamp-*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local backup/checkpoint archives
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.bak
+*.backup
+
+# Project-specific local notes
+notes-private/
+scratch/
+scratchpad/
+
+# Local database backups
+*.sqlite.bak*
+*.db.bak*
+dashboard_fastapi/backups/
+backups/
+
+# Editor/script backup files
+*.bak
+*.bak.*
+*.backup
+*.backup.*
+*.orig
+*.rej
+
+# Generated or ad hoc local evaluation artifacts
+docs/evaluations/
+prompts/context-sweep/
+prompts/daily-eval/
+
+# Real local model/profile config; publish examples later
+configs/models.yaml
+configs/models.yaml.*
+configs/test_profiles.yaml
+configs/test_profiles.yaml.*
+
+# ============================================================================
+# Extra publication safety guards
+# ============================================================================
+
+# Environment / credentials
+.env
+.env.*
+!.env.example
+*.env
+*.env.*
+!.env.example
+.envrc
+.direnv/
+
+# Secrets / credentials / auth material
+*secret*
+*secrets*
+*token*
+*tokens*
+*credential*
+*credentials*
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+*.pub
+id_rsa*
+id_ed25519*
+known_hosts
+.netrc
+
+# Cloud / provider credentials
+.aws/
+.azure/
+.gcloud/
+.config/gcloud/
+huggingface/
+.huggingface/
+.cache/huggingface/
+
+# Databases and backups
+*.sqlite
+*.sqlite-*
+*.sqlite.bak*
+*.db
+*.db-*
+*.db.bak*
+*.bak
+*.bak.*
+*.backup
+*.backup.*
+*.orig
+*.rej
+backups/
+dashboard_fastapi/backups/
+
+# Runtime/generated local data
+runs/
+logs/
+tmp/
+temp/
+.cache/
+cache/
+results/
+exports/
+reports/
+raw_outputs/
+eval_outputs/
+
+# Local models / ML artifacts
+models/
+model-cache/
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Private screenshots/images by default
+screenshots/
+private-screenshots/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+
+# Generated/ad hoc local evaluation artifacts
+docs/evaluations/
+prompts/context-sweep/
+prompts/daily-eval/
+
+# Real local model/profile config; publish sanitized examples instead
+configs/models.yaml
+configs/models.yaml.*
+configs/test_profiles.yaml
+configs/test_profiles.yaml.*
+
+# Private notes / scratch
+notes-private/
+scratch/
+scratchpad/
+*.private.*
+private/
+
+# More backup filename variants
+*.bak-*
+*.backup-*
+*.old
+*.old.*
+
+# Local/ad hoc scripts not ready for publication
+scripts/run_context_sweep.py
+
+# Personal/private prompt material
+prompts/core-v3/personal-ops/

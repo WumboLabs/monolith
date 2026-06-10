@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Agent Lab / Session #{{ session.id }}</p>
+    <h1>{{ session.name }}</h1>
+    <p class="page-subtitle">{{ session.goal }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="testbench-tab agent-action-button secondary" href="/agents"><span class="tab-kicker">←</span><span>Back to sessions</span></a>
+  </div>
+</section>
+
+<section class="metric-grid">
+  <div class="card">
+    <div class="metric-label">Status</div>
+    <div class="metric-value">{{ session.status }}</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Mode</div>
+    <div class="metric-value">{{ session.mode }}</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Model</div>
+    <div class="metric-value">{{ session.model_label or session.model_profile_name or "—" }}</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Workspace</div>
+    <div class="metric-value">{{ session.workspace_label or "—" }}</div>
+  </div>
+</section>
+
+<section class="grid-two">
+  <div class="card">
+    <h2>Session context</h2>
+    <dl class="metadata-list">
+      <dt>Workspace path</dt>
+      <dd><code>{{ session.workspace_path or "—" }}</code></dd>
+      <dt>Created</dt>
+      <dd>{{ session.created_at }}</dd>
+      <dt>Updated</dt>
+      <dd>{{ session.updated_at }}</dd>
+    </dl>
+
+    <h3>Context summary</h3>
+    <p>{{ session.context_summary or "No context summary saved." }}</p>
+
+    <h3>Safety notes</h3>
+    <p>{{ session.safety_notes or "No safety notes saved." }}</p>
+  </div>
+
+  <div class="card">
+    <h2>Current boundary</h2>
+    <p>
+      This Agent Lab session can store planning metadata only. It cannot execute commands,
+      inspect files, apply patches, or call tools.
+    </p>
+    <ul>
+      <li>Model proposes; Monolith stores; user decides.</li>
+      <li>No background autonomy.</li>
+      <li>No hidden execution.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Plans</h2>
+  {% if plans %}
+  <div class="stack">
+    {% for plan in plans %}
+    <article class="sub-card">
+      <div class="section-heading">
+        <h3>{{ plan.title or "Plan v" ~ plan.version }}</h3>
+        <span class="status-pill">{{ plan.status }}</span>
+      </div>
+      <pre>{{ plan.plan_text }}</pre>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No plans saved yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Action proposals</h2>
+  {% if proposals %}
+  <div class="stack">
+    {% for proposal in proposals %}
+    <article class="sub-card">
+      <div class="section-heading">
+        <h3>{{ proposal.title }}</h3>
+        <span class="status-pill">{{ proposal.status }}</span>
+      </div>
+      <p><strong>Type:</strong> {{ proposal.proposal_type }} · <strong>Risk:</strong> {{ proposal.risk_level }}</p>
+      <pre>{{ proposal.body }}</pre>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No action proposals saved yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Reviews</h2>
+  {% if reviews %}
+  <div class="stack">
+    {% for review in reviews %}
+    <article class="sub-card">
+      <div class="section-heading">
+        <h3>{{ review.subject_type }}{% if review.subject_id %} #{{ review.subject_id }}{% endif %}</h3>
+        <span class="status-pill">{{ review.status }}</span>
+      </div>
+      <p>{{ review.review_text }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No reviews saved yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

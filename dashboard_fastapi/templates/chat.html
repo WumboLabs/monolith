@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Chat</h1>
+
+<section class="chat-layout">
+  <div class="chat-panel">
+    <div id="chatLog" class="chat-log">
+      <div class="message system-message">
+        Local chat web UI ready. Auto-save is off by default. Enable it when you want every response logged as a testbench run.
+      </div>
+    </div>
+
+    <form id="chatForm" class="chat-form">
+      <textarea
+        id="promptInput"
+        rows="1"
+        placeholder="Ask the local model something..."
+        required
+        oninput="monolithAutosizePrompt(this)"
+        onpaste="setTimeout(() => monolithAutosizePrompt(this), 0)"
+        oncut="setTimeout(() => monolithAutosizePrompt(this), 0)"
+      ></textarea>
+
+      <div class="input-hint">Enter sends. Shift+Enter inserts a newline.</div>
+
+      <button id="sendButton" type="submit" class="send-button">Send</button>
+    </form>
+
+    <div class="chat-controls chat-controls-footer">
+      <label class="chat-control-field profile-field">
+        Model profile
+        <select id="profile">
+          {% for key, profile in profiles.items() %}
+          <option value="{{ key }}">{{ profile.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="chat-control-field mode-field">
+        Mode
+        <select id="mode">
+          <option value="auto">Auto</option>
+          <option value="technical">Technical</option>
+          <option value="creative">Creative</option>
+          <option value="raw">Raw</option>
+        </select>
+      </label>
+
+      <label class="chat-control-field tokens-field">
+        Max tokens
+        <input id="maxTokens" type="number" value="2048" min="64" max="8192">
+      </label>
+
+      <label class="toggle-control" title="When enabled, every completed response is saved as a testbench run.">
+        <input id="autoSaveRuns" type="checkbox">
+        <span class="toggle-switch" aria-hidden="true"></span>
+        <span class="toggle-text">
+          <span class="toggle-title">Auto-save</span>
+          <span id="autoSaveState" class="toggle-state">Off</span>
+        </span>
+      </label>
+
+      <button id="clearButton" type="button" class="chat-action-button clear-chat-button">Clear chat</button>
+      <button id="saveRunButton" type="button" disabled class="chat-action-button save-run-button">Save last response</button>
+    </div>
+  </div>
+
+  <aside class="chat-notes">
+    <h2>Profiles</h2>
+    <table class="subtle-table">
+      <tbody>
+        <tr>
+          <th>Gemma 8k</th>
+          <td>Fast general chat / testbench work</td>
+        </tr>
+        <tr>
+          <th>Gemma 48k</th>
+          <td>Long-context experimental mode</td>
+        </tr>
+        <tr>
+          <th>Qwen 8k</th>
+          <td>Quality baseline / gold standard</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Modes</h2>
+    <table class="subtle-table">
+      <tbody>
+        <tr>
+          <th>Auto</th>
+          <td>General use. Technical guardrails appear only when relevant.</td>
+        </tr>
+        <tr>
+          <th>Technical</th>
+          <td>Conservative Linux, homelab, local LLM, and troubleshooting mode.</td>
+        </tr>
+        <tr>
+          <th>Creative</th>
+          <td>Looser writing mode for posts, poems, brainstorming, and style tests.</td>
+        </tr>
+        <tr>
+          <th>Raw</th>
+          <td>Minimal wrapper. Useful for checking base model behavior.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Logging</h2>
+    <table class="subtle-table">
+      <tbody>
+        <tr>
+          <th>Manual</th>
+          <td>Click Save last response after a useful answer</td>
+        </tr>
+        <tr>
+          <th>Auto</th>
+          <td>When enabled, every completed response is saved as a run</td>
+        </tr>
+        <tr>
+          <th>Category</th>
+          <td>Saved chat rows use prompt_category = chat-web</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="muted">
+      Current chat history is browser-side only. Saved runs are written to SQLite and runs/chat/.
+    </p>
+  </aside>
+</section>
+
+<script>
+
+function monolithAutosizePrompt(textarea) {
+  if (!textarea) {
+    return;
+  }
+
+  const minHeight = 42;
+  const maxHeight = 180;
+
+  textarea.style.height = "auto";
+
+  const nextHeight = Math.max(
+    minHeight,
+    Math.min(textarea.scrollHeight + 2, maxHeight)
+  );
+
+  textarea.style.height = nextHeight + "px";
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
+
+const form = document.getElementById("chatForm");
+const promptBox = document.getElementById("promptInput");
+const chatLog = document.getElementById("chatLog");
+const sendButton = document.getElementById("sendButton");
+const clearButton = document.getElementById("clearButton");
+const saveRunButton = document.getElementById("saveRunButton");
+const autoSaveRuns = document.getElementById("autoSaveRuns");
+const autoSaveState = document.getElementById("autoSaveState");
+const profileSelect = document.getElementById("profile");
+const modeSelect = document.getElementById("mode");
+
+
+const maxTokensInput = document.getElementById("maxTokens");
+
+let chatHistory = [];
+let lastResponse = null;
+let lastVisiblePrompt = null;
+let lastFullPrompt = null;
+let lastSavedRunId = null;
+
+
+async function readApiResponse(response) {
+  const rawText = await response.text();
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    return {
+      detail: rawText || `HTTP ${response.status} ${response.statusText}`
+    };
+  }
+}
+
+function renderMarkdown(text) {
+  if (window.marked) {
+    return marked.parse(text || "");
+  }
+
+  return (text || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function addMessage(kind, text, meta = null) {
+  const div = document.createElement("div");
+  div.className = "message " + kind + "-message";
+
+  if (kind === "assistant") {
+    div.innerHTML = renderMarkdown(text);
+  } else {
+    div.textContent = text;
+  }
+
+  if (meta) {
+    const metaDiv = document.createElement("div");
+    metaDiv.className = "response-meta";
+
+    const parts = [];
+
+    if (meta.label) {
+      parts.push(meta.label);
+    }
+
+    if (meta.mode) {
+      parts.push("mode: " + meta.mode);
+    }
+
+    if (meta.elapsed_seconds !== null && meta.elapsed_seconds !== undefined) {
+      parts.push(meta.elapsed_seconds + "s");
+    }
+
+    if (meta.output_tokens !== null && meta.output_tokens !== undefined) {
+      parts.push("~" + meta.output_tokens + " output tok");
+    }
+
+    if (meta.generation_tps !== null && meta.generation_tps !== undefined) {
+      parts.push("gen ~" + Number(meta.generation_tps).toFixed(1) + " tok/s");
+    }
+
+    if (meta.prompt_eval_tps !== null && meta.prompt_eval_tps !== undefined) {
+      parts.push("prompt " + Number(meta.prompt_eval_tps).toFixed(1) + " tok/s");
+    }
+
+    if (meta.vram_peak_mib !== null && meta.vram_peak_mib !== undefined) {
+      parts.push("peak VRAM " + meta.vram_peak_mib + " MiB");
+    }
+
+    if (meta.token_count_method) {
+      parts.push("tokens: " + meta.token_count_method);
+    }
+
+    metaDiv.textContent = parts.join(" · ");
+    div.appendChild(metaDiv);
+  }
+
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function addRunSavedMessage(runId, detailUrl, autoSaved = false) {
+  const div = document.createElement("div");
+  div.className = "message system-message";
+  const prefix = autoSaved ? "Auto-saved" : "Saved";
+  div.innerHTML = `${prefix} as run <a href="${detailUrl}">${runId}</a>.`;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function recentHistoryText() {
+  const recent = chatHistory.slice(-8);
+
+  return recent.map((message) => {
+    if (message.role === "user") {
+      return "User:\n" + message.content;
+    }
+
+    if (message.role === "assistant") {
+      return "Assistant:\n" + message.content;
+    }
+
+    return "";
+  }).join("\n\n");
+}
+
+async function saveCurrentRun(autoSaved = false) {
+  if (!lastResponse || !lastFullPrompt || lastSavedRunId) {
+    return;
+  }
+
+  saveRunButton.disabled = true;
+  saveRunButton.textContent = autoSaved ? "Auto-saving..." : "Saving...";
+
+  try {
+    const response = await fetch("/api/chat/save-run", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        profile: profileSelect.value,
+        mode: modeSelect.value,
+        prompt: lastFullPrompt,
+        response: lastResponse.response || "",
+        max_tokens: Number(maxTokensInput.value || 2048),
+        elapsed_seconds: lastResponse.elapsed_seconds,
+        prompt_tokens: lastResponse.prompt_tokens,
+        output_tokens: lastResponse.output_tokens,
+        prompt_eval_tps: lastResponse.prompt_eval_tps,
+        generation_tps: lastResponse.generation_tps,
+        vram_peak_mib: lastResponse.vram_peak_mib,
+        notes: lastVisiblePrompt
+          ? "visible_prompt=" + lastVisiblePrompt
+            + (autoSaved ? " auto_saved=true" : " auto_saved=false")
+            + (lastResponse.token_count_method ? " token_count=" + lastResponse.token_count_method : "")
+          : (autoSaved ? "auto_saved=true" : "auto_saved=false")
+            + (lastResponse.token_count_method ? " token_count=" + lastResponse.token_count_method : "")
+      })
+    });
+
+    const data = await readApiResponse(response);
+
+    if (!response.ok) {
+      addMessage("error", data.detail || "Save failed.");
+      saveRunButton.disabled = false;
+      return;
+    }
+
+    lastSavedRunId = data.run_id;
+    addRunSavedMessage(data.run_id, data.detail_url, autoSaved);
+    saveRunButton.textContent = "Saved as run " + data.run_id;
+    saveRunButton.disabled = true;
+  } catch (error) {
+    addMessage("error", String(error));
+    saveRunButton.textContent = "Save last response";
+    saveRunButton.disabled = false;
+  }
+}
+
+
+autoSaveRuns.addEventListener("change", () => {
+  autoSaveState.textContent = autoSaveRuns.checked ? "On" : "Off";
+
+  if (autoSaveRuns.checked) {
+    addMessage("system", "Auto-save enabled. Completed responses will be logged as testbench runs.");
+  } else {
+    addMessage("system", "Auto-save disabled. Responses will only be saved manually.");
+  }
+});
+
+promptBox.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+
+    if (!sendButton.disabled) {
+      form.requestSubmit();
+    }
+  }
+});
+
+clearButton.addEventListener("click", () => {
+  chatHistory = [];
+  lastResponse = null;
+  lastVisiblePrompt = null;
+  lastFullPrompt = null;
+  lastSavedRunId = null;
+  saveRunButton.disabled = true;
+  saveRunButton.textContent = "Save last response";
+  chatLog.innerHTML = "";
+
+  addMessage(
+    "system",
+    "Chat cleared. Browser-side history has been reset."
+  );
+
+  promptBox.focus();
+});
+
+saveRunButton.addEventListener("click", () => {
+  saveCurrentRun(false);
+});
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const prompt = promptBox.value.trim();
+  if (!prompt) {
+    return;
+  }
+
+  const profile = profileSelect.value;
+  const mode = modeSelect.value;
+  const max_tokens = Number(maxTokensInput.value || 2048);
+
+  const historyText = recentHistoryText();
+  const fullPrompt = historyText
+    ? historyText + "\n\nUser:\n" + prompt
+    : prompt;
+
+  addMessage("user", prompt);
+  chatHistory.push({
+    role: "user",
+    content: prompt
+  });
+
+  lastResponse = null;
+  lastVisiblePrompt = prompt;
+  lastFullPrompt = fullPrompt;
+  lastSavedRunId = null;
+  saveRunButton.disabled = true;
+  saveRunButton.textContent = "Save last response";
+
+  promptBox.value = "";
+  monolithAutosizePrompt(promptBox);
+  window.monolithResizePromptInput?.();
+  sendButton.disabled = true;
+  clearButton.disabled = true;
+  saveRunButton.disabled = true;
+  sendButton.textContent = "Running...";
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        profile,
+        mode,
+        prompt: fullPrompt,
+        max_tokens
+      })
+    });
+
+    const data = await readApiResponse(response);
+
+    if (!response.ok) {
+      addMessage("error", data.detail || "Request failed.");
+    } else {
+      const assistantText = data.response || "";
+      lastResponse = data;
+      addMessage("assistant", assistantText, data);
+
+      chatHistory.push({
+        role: "assistant",
+        content: assistantText
+      });
+
+      if (autoSaveRuns.checked) {
+        await saveCurrentRun(true);
+      } else {
+        saveRunButton.disabled = false;
+      }
+    }
+  } catch (error) {
+    addMessage("error", String(error));
+  } finally {
+    sendButton.disabled = false;
+    clearButton.disabled = false;
+    sendButton.textContent = "Send";
+    promptBox.focus();
+  }
+});
+
+
+function setupAssistantScrollPosition() {
+  if (!chatHistory) {
+    return;
+  }
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (!(node instanceof HTMLElement)) {
+          continue;
+        }
+
+        if (node.classList.contains("assistant-message")) {
+          setTimeout(() => {
+            node.scrollIntoView({
+              behavior: "smooth",
+              block: "start"
+            });
+          }, 50);
+
+          return;
+        }
+      }
+    }
+  });
+
+  observer.observe(chatHistory, {
+    childList: true
+  });
+}
+
+setupAssistantScrollPosition();
+
+
+
+
+
+
+
+
+
+
+</script>
+
+{% endblock %}

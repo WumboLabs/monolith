@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Evaluation / Agent Backend Eval</p>
+    <h1>Agent Backend Eval</h1>
+    <p class="page-subtitle">
+      Controlled local-model evaluation for Agent Lab and future Monolith Agent Runtime suitability.
+    </p>
+  </div>
+</header>
+
+{% include "partials/testbench_tabs.html" %}
+
+<section class="dashboard-grid">
+  <article class="card">
+    <div class="metric-label">Agent target</div>
+    <div class="metric-value">65,536 ctx</div>
+    <p class="muted">A model is not considered agent-backend viable unless it completes the target context safely and follows tool, command, and workspace boundaries.</p>
+  </article>
+
+  <article class="card">
+    <div class="metric-label">Stored runs</div>
+    <div class="metric-value">{{ summary.run_count }}</div>
+    <p class="muted">Agent-backend eval sessions stored in dedicated tables.</p>
+  </article>
+
+  <article class="card">
+    <div class="metric-label">Stored results</div>
+    <div class="metric-value">{{ summary.result_count }}</div>
+    <p class="muted">Per-prompt, per-context Agent-backend result rows.</p>
+  </article>
+
+  <article class="card">
+    <div class="metric-label">Scored results</div>
+    <div class="metric-value">{{ summary.score_count }}</div>
+    <p class="muted">Manual scoring will be added in the next phase.</p>
+  </article>
+</section>
+
+<section class="card">
+  <h2>Guardrails</h2>
+  <div class="compact-grid">
+    <div>
+      <h3>Allowed execution model</h3>
+      <ul>
+        <li>Active Monolith model profiles only.</li>
+        <li>Approved prompt suites only.</li>
+        <li>Bounded context ladders only.</li>
+        <li>Normal cache first.</li>
+        <li>Raw output preserved.</li>
+      </ul>
+    </div>
+
+    <div>
+      <h3>Explicitly disallowed</h3>
+      <ul>
+        <li>No arbitrary shell commands from the UI.</li>
+        <li>No arbitrary model paths.</li>
+        <li>No arbitrary prompt roots.</li>
+        <li>No prompt editing from the eval UI.</li>
+        <li>No file deletion or downloader behavior.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Context ladders</h2>
+
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Contexts</th>
+        <th>Use</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ladder in options.context_ladders %}
+      <tr>
+        <td><span class="status-pill">{{ ladder.label }}</span></td>
+        <td><code>{{ ladder.contexts | join(", ") }}</code></td>
+        <td>{{ ladder.description }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Approved Agent-backend prompts</h2>
+  <p class="muted">
+    These prompts are loaded from <code>prompts/agent-eval-v1</code>. Execution is not wired yet in this shell phase.
+  </p>
+
+  {% if options.prompt_options %}
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Prompt</th>
+        <th>Path</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for prompt in options.prompt_options %}
+      <tr>
+        <td><span class="status-pill">{{ prompt.category }}</span></td>
+        <td>{{ prompt.name }}</td>
+        <td><code>{{ prompt.path }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No Agent-backend prompts found.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Candidate model order</h2>
+
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th>Priority</th>
+        <th>Model</th>
+        <th>Role</th>
+        <th>Initial context plan</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Gemma 4 12B QAT UD-Q4_K_XL</td>
+        <td>High-context/headroom candidate</td>
+        <td>8k → 16k → 32k → 64k</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Gemma 4 12B IT UD-Q5_K_XL</td>
+        <td>Quality candidate</td>
+        <td>8k → 16k → 32k → 64k</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Mellum2 Instruct Q4_K_M</td>
+        <td>Coding/tool-use candidate</td>
+        <td>8k → 16k → 32k → 64k</td>
+      </tr>
+      <tr>
+        <td>Reference</td>
+        <td>Qwen3.6 35B A3B UD-IQ2_M</td>
+        <td>Quality baseline, not expected 64k normal-cache backend</td>
+        <td>8k only, maybe 12288 solo later</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Latest Agent-backend runs</h2>
+
+  {% if summary.latest_runs %}
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Created</th>
+        <th>Model</th>
+        <th>Suite</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in summary.latest_runs %}
+      <tr>
+        <td>{{ run.id }}</td>
+        <td>{{ run.created_at }}</td>
+        <td>{{ run.model_label or run.model_profile_name }}</td>
+        <td>{{ run.suite_name }}</td>
+        <td><span class="status-pill">{{ run.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No Agent Backend Eval runs yet. This is expected until controlled execution is added.</p>
+  {% endif %}
+</section>
+{% endblock %}

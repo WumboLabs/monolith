@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% set failed = row.exit_code is not none and row.exit_code != 0 %}
+{% set scored = row.overall_trust is not none or row.winner_tag %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>Run #{{ row.id }}</h1>
+    <p class="muted">
+      {{ row.timestamp_local }} · {{ row.model_display_name or row.profile_name or row.launcher }}
+    </p>
+  </div>
+
+  <div class="detail-status-stack">
+    {% if failed %}
+      <span class="status-pill status-bad">FAILED</span>
+      <span class="micro-muted">exit {{ row.exit_code }}</span>
+    {% else %}
+      <span class="status-pill status-good">OK</span>
+    {% endif %}
+
+    {% if scored %}
+      <span class="status-pill status-good">SCORED</span>
+    {% else %}
+      <span class="status-pill">UNSCORED</span>
+    {% endif %}
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Profile</div>
+    <div class="metric-value metric-small">{{ row.profile_name or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Category</div>
+    <div class="metric-value metric-small">{{ row.prompt_category or "n/a" }}</div>
+    <div class="micro-muted">{{ row.prompt_family or "" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Context</div>
+    <div class="metric-value">{{ row.ctx_size or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Gen tok/s</div>
+    <div class="metric-value">{{ row.generation_tps or "n/a" }}</div>
+    <div class="micro-muted">{{ row.total_wall_seconds or "n/a" }}s wall</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">VRAM MiB</div>
+    <div class="metric-value">{{ row.vram_peak_mb or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Overall trust</div>
+    <div class="metric-value">{{ row.overall_trust if row.overall_trust is not none else "unscored" }}</div>
+  </div>
+</section>
+
+<section class="run-file-strip">
+  <span class="micro-muted">Files:</span>
+
+  {% if row.prompt_file %}
+    <a href="/file?path={{ row.prompt_file }}">prompt</a>
+  {% endif %}
+
+  {% if row.response_path %}
+    <a href="/file?path={{ row.response_path }}">response</a>
+  {% endif %}
+
+  {% if row.raw_log_path %}
+    <a href="/file?path={{ row.raw_log_path }}">raw log</a>
+  {% endif %}
+</section>
+
+{% if failed %}
+<section class="run-alert">
+  <strong>Failure captured.</strong>
+  This run was saved as testbench data with exit code, token counts, VRAM, response report, and raw log path.
+</section>
+{% endif %}
+
+<section class="detail-grid">
+  <div>
+    <section class="detail-block">
+      <div class="section-heading-row">
+        <div>
+          <h2>Response</h2>
+          <p class="muted">Stored model output or failure report.</p>
+        </div>
+      </div>
+
+      <div class="message assistant-message detail-response detail-text-block">
+        {% if row.response_text %}
+          <pre>{{ row.response_text }}</pre>
+        {% else %}
+          <span class="muted">No response_text stored for this run.</span>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="detail-block">
+      <div class="section-heading-row">
+        <div>
+          <h2>Prompt</h2>
+          <p class="muted">Stored visible prompt text.</p>
+        </div>
+      </div>
+
+      <div class="message user-message detail-response detail-text-block">
+        {% if row.prompt_text %}
+          <pre>{{ row.prompt_text }}</pre>
+        {% else %}
+          <span class="muted">No prompt_text stored for this run.</span>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <aside class="score-panel">
+    <h2>Score this run</h2>
+
+    <p class="muted">
+      Manual scoring only. Use 0-10 where 10 is best, except hallucination severity where 10 means severe.
+    </p>
+
+    {% if scored %}
+    <section class="latest-score-card">
+      <h3>Latest score</h3>
+
+      <div class="score-summary-grid">
+        <div>
+          <span class="metric-label">Trust</span>
+          <strong>{{ row.overall_trust if row.overall_trust is not none else "—" }}</strong>
+        </div>
+        <div>
+          <span class="metric-label">Hallucination</span>
+          <strong>{{ row.hallucination_severity if row.hallucination_severity is not none else "—" }}</strong>
+        </div>
+        <div>
+          <span class="metric-label">Tag</span>
+          <strong>{{ row.winner_tag or "—" }}</strong>
+        </div>
+      </div>
+
+      {% if row.score_notes %}
+        <p class="muted score-notes">{{ row.score_notes }}</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <form id="scoreForm" class="score-form">
+      <label>
+        Factual accuracy
+        <input name="factual_accuracy" type="number" min="0" max="10" value="{{ row.factual_accuracy or '' }}">
+      </label>
+
+      <label>
+        Technical correctness
+        <input name="technical_correctness" type="number" min="0" max="10" value="{{ row.technical_correctness or '' }}">
+      </label>
+
+      <label>
+        Safety
+        <input name="safety" type="number" min="0" max="10" value="{{ row.safety or '' }}">
+      </label>
+
+      <label>
+        Instruction following
+        <input name="instruction_following" type="number" min="0" max="10" value="{{ row.instruction_following or '' }}">
+      </label>
+
+      <label>
+        Concision
+        <input name="concision" type="number" min="0" max="10" value="{{ row.concision or '' }}">
+      </label>
+
+      <label>
+        Hallucination severity
+        <input name="hallucination_severity" type="number" min="0" max="10" value="{{ row.hallucination_severity or '' }}">
+      </label>
+
+      <label>
+        Overall trust
+        <input name="overall_trust" type="number" min="0" max="10" value="{{ row.overall_trust or '' }}">
+      </label>
+
+      <label>
+        Winner tag
+        <input name="winner_tag" type="text" value="{{ row.winner_tag or '' }}" placeholder="gemma-pass, qwen-win, needs-review">
+      </label>
+
+      <label>
+        Score notes
+        <textarea name="notes" rows="5" placeholder="Short scoring notes...">{{ row.score_notes or '' }}</textarea>
+      </label>
+
+      <button id="scoreButton" type="submit">Save score</button>
+      <div id="scoreStatus" class="input-hint"></div>
+    </form>
+  </aside>
+</section>
+
+<section class="detail-block">
+  <h2>Run metadata</h2>
+  <p class="muted">Full stored row data. File paths are linked when available.</p>
+
+  <table class="metadata-table compact-table">
+    <tbody>
+      {% for key, value in metadata %}
+      <tr>
+        <th>{{ key }}</th>
+        <td>
+          {% if key in ["raw_log_path", "response_path", "prompt_file"] and value %}
+            <a href="/file?path={{ value }}">{{ value }}</a>
+          {% else %}
+            {{ value }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+const scoreForm = document.getElementById("scoreForm");
+const scoreButton = document.getElementById("scoreButton");
+const scoreStatus = document.getElementById("scoreStatus");
+
+function nullableNumber(formData, key) {
+  const value = formData.get(key);
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  return Number(value);
+}
+
+async function readApiResponse(response) {
+  const rawText = await response.text();
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    return {
+      detail: rawText || `HTTP ${response.status} ${response.statusText}`
+    };
+  }
+}
+
+scoreForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const formData = new FormData(scoreForm);
+
+  const payload = {
+    factual_accuracy: nullableNumber(formData, "factual_accuracy"),
+    technical_correctness: nullableNumber(formData, "technical_correctness"),
+    safety: nullableNumber(formData, "safety"),
+    instruction_following: nullableNumber(formData, "instruction_following"),
+    concision: nullableNumber(formData, "concision"),
+    hallucination_severity: nullableNumber(formData, "hallucination_severity"),
+    overall_trust: nullableNumber(formData, "overall_trust"),
+    winner_tag: formData.get("winner_tag") || null,
+    notes: formData.get("notes") || null
+  };
+
+  scoreButton.disabled = true;
+  scoreButton.textContent = "Saving...";
+  scoreStatus.textContent = "";
+
+  try {
+    const response = await fetch("/api/runs/{{ row.id }}/score", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await readApiResponse(response);
+
+    if (!response.ok) {
+      scoreStatus.textContent = data.detail || "Score save failed.";
+      scoreButton.disabled = false;
+      scoreButton.textContent = "Save score";
+      return;
+    }
+
+    scoreStatus.innerHTML = `Saved score for run <a href="${data.detail_url}">${data.run_id}</a>. Refreshing...`;
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 700);
+  } catch (error) {
+    scoreStatus.textContent = String(error);
+    scoreButton.disabled = false;
+    scoreButton.textContent = "Save score";
+  }
+});
+</script>
+
+{% endblock %}
