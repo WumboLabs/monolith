@@ -1,3 +1,10 @@
+# alpha v0.10.1 — Public repository polish
+
+- Repositioned README around Monolith as a Local AI Workbench.
+- Replaced WumboJetsII-specific README framing with public-facing project language.
+- Clarified alpha status, local configuration expectations, security posture, and license status.
+- Standardized project version to alpha v0.10.1 across README, VERSION, and app metadata.
+
 # Monolith Changelog
 
 ## alpha v0.09.2 - 2026-06-09

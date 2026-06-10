@@ -1,74 +1,117 @@
-# WumboJetsII Local LLM Testbench
+# Monolith
 
-Timestamped local model, quant, and inference-configuration testing framework for WumboJetsII.
+**Local AI Workbench for testing, comparing, and evaluating local LLMs on real hardware.**
 
-## Goals
+Monolith is a local-first dashboard and evaluation workbench for practical local AI testing. It is built around real workstation constraints: model profiles, GGUF paths, llama.cpp launchers, context scaling, prompt suites, generation speed, VRAM behavior, and repeatable model comparisons.
 
-- Compare local models against the current daily-driver baseline.
-- Track quant quality and performance.
-- Preserve prompt/response history.
-- Record llama.cpp build, launcher, context, cache, and performance settings.
-- Build toward a local dashboard without disturbing production launchers.
+> Real hardware. Real testing. No hype.
 
-## Current baseline
+## Project status
 
-Production launcher:
+Monolith is alpha software.
 
-    lmoeai
+It is currently useful as a personal/local AI workbench, but it is not yet packaged as a general-purpose application. Expect workstation-specific assumptions, rough edges, and active iteration.
 
-Experimental long-context launcher:
+Current version:
 
-    lmoeai-tq
+    alpha v0.10.1
 
-Current champion:
+## What Monolith is for
 
-    Qwen3.6-35B-A3B-UD-IQ2_M
+Monolith is intended to help answer practical local AI questions:
 
-## Rules
+- Which local model is actually useful on this hardware?
+- How does a model behave across context sizes?
+- How fast does it run with a given quant, launcher, and cache setup?
+- Does it follow operational safety constraints?
+- Does it hallucinate under uncertainty?
+- Can it handle Linux, Docker, ZFS, config review, and coding prompts reliably?
+- Which model should be used for daily work, long-context work, or agent backend experiments?
 
-- Do not modify production llama.cpp from this project.
-- Do not modify existing launchers unless explicitly planned.
-- Treat TurboQuant as experimental.
-- Compare all candidates against Qwen3.6-35B-A3B.
-- Prefer repeatable tests over one-off impressions.
-- Timestamp all runs and notes.
+## Current capabilities
+
+Monolith currently includes:
+
+- Local model profile tracking
+- Chat/test run logging
+- Prompt and response metadata capture
+- Token count and speed tracking
+- VRAM/performance fields
+- Core local-eval prompt suites
+- Context-scaling evaluation scaffolding
+- Agent Lab planning/review scaffolding
+- Agent backend evaluation prompt suites
+- FastAPI-based local dashboard UI
+
+## Current safety posture
+
+Monolith is designed to run locally on a trusted machine.
+
+The repository intentionally excludes:
+
+- `.env` files
+- API keys and tokens
+- passwords
+- private SSH keys
+- SQLite databases
+- raw logs
+- local model binaries
+- screenshots with private data
+- real local model configuration files
+
+Use the sanitized examples under `examples/config/` as templates for local configuration.
+
+## Local configuration
+
+Real local configuration files are ignored by Git.
+
+Use:
+
+    examples/config/models.example.yaml
+    examples/config/test_profiles.example.yaml
+
+as starting points, then copy them locally to:
+
+    configs/models.yaml
+    configs/test_profiles.yaml
+
+Do not commit your real local config files.
+
+## Development rules
+
+This project follows a conservative local-first workflow:
+
+- Prefer small, reversible changes.
+- Keep generated data out of Git.
+- Keep real model paths and private machine details out of public files.
+- Run scans before public-facing commits.
+- Do not add automatic command execution without review boundaries.
+- Treat agent workflows as proposal/review-first until proven safe.
+- Keep llama.cpp and production launchers outside this repo unless explicitly planned.
 
 ## Versioning
 
-Monolith uses milestone + patch versioning during alpha development.
+Monolith uses alpha milestone versioning.
 
 Examples:
 
-- alpha v0.10.0 — known-good feature/milestone baseline
-- alpha v0.10.0.3.2 — small UI/UX polish, bugfix, or cleanup after v0.02
-- alpha v0.10.0.3.2 — next small patch
-- alpha v0.10.0.3.2 — next feature milestone
-
-Patch numbers do not stop at .9; use .10, .11, etc. if needed.
+- `alpha v0.10.0` — initial public preflight baseline
+- `alpha v0.10.1` — public readiness and repository polish
+- `alpha v0.10.2` — next feature milestone
+- `alpha v0.10.2.1` — small patch after that milestone
 
 Current version is tracked in:
 
-- VERSION
-- dashboard_fastapi/app.py as APP_VERSION
-- CHANGELOG.md
+- `VERSION`
+- `dashboard_fastapi/app.py` as `APP_VERSION`
+- `CHANGELOG.md`
 
-Current active version:
+## Security
 
-    alpha v0.10.0.3.2
+See [`SECURITY.md`](SECURITY.md).
 
-## Alpha status
+## License
 
-Monolith is currently alpha software.
+No open-source license has been selected yet.
 
-It is being developed as a local-first workbench for testing and evaluating local LLMs on real hardware. It is not yet packaged as a general-purpose application and may still contain workstation-specific assumptions.
-
-Before using it on another system, review:
-
-- ignored local config files
-- example model profiles
-- local llama.cpp paths
-- database initialization scripts
-- command execution boundaries
-- Agent Lab safety assumptions
-
-Do not commit local secrets, model files, logs, databases, or private screenshots.
+Until a license is added, this repository is public for visibility and review, but reuse rights are not granted beyond GitHub's normal viewing/forking terms.
