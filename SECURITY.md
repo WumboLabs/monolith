@@ -21,7 +21,7 @@ The repository should not contain:
 
 Real local configuration files such as `configs/models.yaml` and `configs/test_profiles.yaml` are intentionally ignored by Git.
 
-Use the sanitized examples under `examples/config/` as templates.
+Use the sanitized examples under `configs/`, such as `configs/models.example.yaml`, as templates.
 
 ## Agent and command-execution caution
 
