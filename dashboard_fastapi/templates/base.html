@@ -53,6 +53,7 @@
               <span>CPU LOAD <strong id="statCpuLoad">--</strong></span>
               <span>LOAD AVG <strong id="statLoadAvg">--</strong></span>
               <span>RAM <strong id="statRam">--</strong></span>
+              <span>DISK <strong id="statDisk">--</strong></span>
               <span>GPU <strong id="statGpuLoad">--</strong></span>
               <span>VRAM <strong id="statVram">--</strong></span>
               <span>TEMP <strong id="statGpuTemp">--</strong></span>
@@ -63,6 +64,7 @@
               <span>CPU LOAD <strong id="statCpuLoadClone">--</strong></span>
               <span>LOAD AVG <strong id="statLoadAvgClone">--</strong></span>
               <span>RAM <strong id="statRamClone">--</strong></span>
+              <span>DISK <strong id="statDiskClone">--</strong></span>
               <span>GPU <strong id="statGpuLoadClone">--</strong></span>
               <span>VRAM <strong id="statVramClone">--</strong></span>
               <span>TEMP <strong id="statGpuTempClone">--</strong></span>
@@ -111,36 +113,50 @@ async function updateWorkstationStats() {
 
     const cpu = data.cpu || {};
     const memory = data.memory || {};
+    const disk = data.disk || {};
     const gpu = data.gpu || {};
 
-    const cpuLoadText = `${cpu.load_percent ?? "--"}%`;
-    const loadAvgText = `${cpu.load_1m ?? "--"} / ${cpu.cores ?? "--"} threads`;
+    const cpuLoadText = cpu.available && cpu.load_percent !== null && cpu.load_percent !== undefined
+      ? `${cpu.load_percent}%`
+      : "n/a";
+
+    const loadAvgText = cpu.available
+      ? `${cpu.load_1m ?? "--"} / ${cpu.cores ?? "--"} threads`
+      : "n/a";
 
     setTextForIds(["statCpuLoad", "statCpuLoadClone"], cpuLoadText);
     setTextForIds(["statLoadAvg", "statLoadAvgClone"], loadAvgText);
 
-    if (memory.used_mib !== null && memory.total_mib !== null) {
-      const ramText = `${mibToGibText(memory.used_mib)} / ${mibToGibText(memory.total_mib)} GiB (${memory.used_percent}%)`;
+    if (memory.available && memory.used_mib !== null && memory.total_mib !== null) {
+      const ramText = `${mibToGibText(memory.used_mib)} / ${mibToGibText(memory.total_mib)} GiB (${memory.used_percent ?? "--"}%)`;
       setTextForIds(["statRam", "statRamClone"], ramText);
     } else {
-      setTextForIds(["statRam", "statRamClone"], "--");
+      setTextForIds(["statRam", "statRamClone"], "n/a");
+    }
+
+    if (disk.available && disk.used_percent !== null && disk.used_percent !== undefined) {
+      const diskText = `${disk.used_percent}% / ${disk.free_gib ?? "--"} GiB free`;
+      setTextForIds(["statDisk", "statDiskClone"], diskText);
+    } else {
+      setTextForIds(["statDisk", "statDiskClone"], "n/a");
     }
 
     if (gpu.available) {
-      setTextForIds(["statGpuLoad", "statGpuLoadClone"], `${gpu.util_percent}%`);
-      setTextForIds(["statVram", "statVramClone"], `${mibToGibText(gpu.vram_used_mib)} / ${mibToGibText(gpu.vram_total_mib)} GiB (${gpu.vram_used_percent}%)`);
-      setTextForIds(["statGpuTemp", "statGpuTempClone"], `${gpu.temperature_c}°C`);
-      setTextForIds(["statGpuPower", "statGpuPowerClone"], gpu.power_w === null ? "--" : `${gpu.power_w} W`);
+      setTextForIds(["statGpuLoad", "statGpuLoadClone"], gpu.util_percent === null || gpu.util_percent === undefined ? "n/a" : `${gpu.util_percent}%`);
+      setTextForIds(["statVram", "statVramClone"], gpu.vram_used_mib === null || gpu.vram_total_mib === null ? "n/a" : `${mibToGibText(gpu.vram_used_mib)} / ${mibToGibText(gpu.vram_total_mib)} GiB (${gpu.vram_used_percent ?? "--"}%)`);
+      setTextForIds(["statGpuTemp", "statGpuTempClone"], gpu.temperature_c === null || gpu.temperature_c === undefined ? "n/a" : `${gpu.temperature_c}°C`);
+      setTextForIds(["statGpuPower", "statGpuPowerClone"], gpu.power_w === null || gpu.power_w === undefined ? "n/a" : `${gpu.power_w} W`);
     } else {
-      setTextForIds(["statGpuLoad", "statGpuLoadClone"], "--");
-      setTextForIds(["statVram", "statVramClone"], "--");
-      setTextForIds(["statGpuTemp", "statGpuTempClone"], "--");
-      setTextForIds(["statGpuPower", "statGpuPowerClone"], "--");
+      setTextForIds(["statGpuLoad", "statGpuLoadClone"], "n/a");
+      setTextForIds(["statVram", "statVramClone"], "n/a");
+      setTextForIds(["statGpuTemp", "statGpuTempClone"], "n/a");
+      setTextForIds(["statGpuPower", "statGpuPowerClone"], "n/a");
     }
   } catch (error) {
     setTextForIds(["statCpuLoad", "statCpuLoadClone"], "error");
     setTextForIds(["statLoadAvg", "statLoadAvgClone"], "error");
     setTextForIds(["statRam", "statRamClone"], "error");
+    setTextForIds(["statDisk", "statDiskClone"], "error");
     setTextForIds(["statGpuLoad", "statGpuLoadClone"], "error");
     setTextForIds(["statVram", "statVramClone"], "error");
     setTextForIds(["statGpuTemp", "statGpuTempClone"], "error");
