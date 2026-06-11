@@ -1,4 +1,4 @@
-## alpha v0.11.6 - 2026-06-11
+## alpha v0.11.6 - 2026-06-10
 
 - Hardened Workstation system monitoring for other users and machines.
 - Added explicit available/error states for CPU, memory, disk, and GPU stats.
@@ -7,7 +7,7 @@
 - Updated Workstation rendering so unavailable metrics show n/a or explanatory notes instead of breaking the page.
 - Updated the top system ticker to consume the hardened monitoring payload.
 
-## alpha v0.11.5 - 2026-06-11
+## alpha v0.11.5 - 2026-06-10
 
 - Applied the WumboCore / Monochrome Lime palette to the app theme.
 - Reduced high-intensity lime accent opacity for a more restrained workbench look.
@@ -16,7 +16,7 @@
 - Added non-destructive Agent Lab session archiving.
 - Hid archived Agent Lab sessions from the default session list.
 
-## alpha v0.11.4 - 2026-06-11
+## alpha v0.11.4 - 2026-06-10
 
 - Added generated SQLite chat profiles for local GGUF models.
 - Added Models workflow support for creating chat profiles from local inventory rows.
@@ -32,7 +32,7 @@
 
 # Monolith Changelog
 
-## alpha v0.11.3 - 2026-06-11
+## alpha v0.11.3 - 2026-06-10
 
 ### Added
 - Added controlled model downloader execution for planned Hugging Face GGUF download jobs.
@@ -60,7 +60,7 @@
 - Verified local inventory rescan after completion.
 - Verified tiny local downloader integration test passes and cleans up after itself.
 
-## alpha v0.11.2 - 2026-06-11
+## alpha v0.11.2 - 2026-06-10
 
 ### Added
 - Added controlled model downloader planning schema with the `model_download_jobs` table.

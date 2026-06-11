@@ -19,6 +19,9 @@ Run:
     python scripts/migrate_model_registry.py
     python scripts/migrate_model_downloader.py
     python scripts/migrate_generated_chat_profiles.py
+    python scripts/migrate_context_scaling.py
+    python scripts/migrate_hermes_eval.py
+    python scripts/migrate_agent_lab.py
 
 ## Model does not appear in Chat
 

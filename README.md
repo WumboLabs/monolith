@@ -59,7 +59,9 @@ The repository intentionally excludes:
 - screenshots with private data
 - real local model configuration files
 
-Use the sanitized examples under `examples/config/` as templates for local configuration.
+Use the sanitized examples under `configs/` as templates for local configuration.
+
+See [`docs/PUBLIC_ALPHA.md`](docs/PUBLIC_ALPHA.md) for current public-alpha status, limitations, and expected setup path.
 
 ## Local configuration
 
@@ -67,13 +69,11 @@ Real local configuration files are ignored by Git.
 
 Use:
 
-    examples/config/models.example.yaml
-    examples/config/test_profiles.example.yaml
+    configs/models.example.yaml
 
 as starting points, then copy them locally to:
 
     configs/models.yaml
-    configs/test_profiles.yaml
 
 Do not commit your real local config files.
 
