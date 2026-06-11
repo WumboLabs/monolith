@@ -14,7 +14,7 @@ It is currently useful as a local AI workbench for technical users, but it is no
 
 Current version:
 
-    alpha v0.11.6
+    alpha v0.11.7
 
 ## What Monolith is for
 
@@ -98,8 +98,8 @@ Examples:
 - `alpha v0.10.0` — initial public preflight baseline
 - `alpha v0.11.4` — public-alpha readiness, generated chat profiles, model detail pages, local prompt scaffold, and install docs
 - `alpha v0.11.3` — controlled downloader execution and UI
-- `alpha v0.11.7` — next feature milestone
-- `alpha v0.11.7.1` — small patch after that milestone
+- `alpha v0.11.8` — next feature milestone
+- `alpha v0.11.8.1` — small patch after that milestone
 
 Current version is tracked in:
 

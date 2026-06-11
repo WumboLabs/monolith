@@ -1,3 +1,12 @@
+## alpha v0.11.7 - 2026-06-10
+
+- Generalized public-alpha docs and bundled prompt examples.
+- Removed remaining original-author machine/path assumptions from active public files.
+- Generalized default model, llama.cpp, inventory, and Quant Lab paths.
+- Added `docs/PUBLIC_ALPHA.md` with current public-alpha status and limitations.
+- Updated troubleshooting database migration instructions.
+- Corrected recent release dates to local machine date.
+
 ## alpha v0.11.6 - 2026-06-10
 
 - Hardened Workstation system monitoring for other users and machines.
@@ -68,7 +77,7 @@
 - Added metadata-only download planning APIs:
   - `GET /api/models/downloads`
   - `POST /api/models/downloads/plan`
-- Added approved Hugging Face destination path planning under `~/Projects/local-llm/models/huggingface`.
+- Added approved Hugging Face destination path planning under `~/Monolith/models/huggingface`.
 - Added path safety checks for repository-derived directories and GGUF filenames.
 
 ### Safety
@@ -120,8 +129,8 @@ Model Registry local inventory.
 - Added additive Model Registry migration script: `scripts/migrate_model_registry.py`.
 - Added `local_model_files` inventory table for local GGUF tracking.
 - Added approved-root local model scanner for:
-  - `~/Projects/local-llm/models`
-  - `~/Projects/local-llm/llama.cpp-models`
+  - `~/Monolith/models`
+  - `~/Monolith/models`
 - Added filtering to exclude tiny vocab/support GGUFs and `mmproj` files from the first inventory view.
 - Added filename-based family, quant, and architecture guesses.
 - Added registration detection against `configs/models.yaml` and `chat_profiles`.
