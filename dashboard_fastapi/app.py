@@ -41,7 +41,7 @@ MODELS_CONFIG = env_path("MONOLITH_MODELS_CONFIG", ROOT / "configs" / "models.ya
 PROMPT_LIBRARY_ROOT = ROOT / "prompts"
 PROMPT_SUITE_ROOT = PROMPT_LIBRARY_ROOT / "core-v2"
 
-QUANT_LAB_ROOT = Path.home() / "Projects" / "local-llm" / "quant-lab"
+QUANT_LAB_ROOT = env_path("MONOLITH_QUANT_LAB_ROOT", ROOT / "quant-lab")
 QUANT_LAB_RUNNER = QUANT_LAB_ROOT / "scripts" / "run-core-v2-suite.sh"
 QUANT_LAB_RESULTS_DIR = QUANT_LAB_ROOT / "results"
 
@@ -413,8 +413,6 @@ def approved_model_inventory_roots() -> list[Path]:
 
     return [
         Path.home() / "Monolith/models",
-        Path.home() / "Projects/local-llm/models",
-        Path.home() / "Projects/local-llm/llama.cpp-models",
     ]
 
 
@@ -1182,27 +1180,21 @@ def search_huggingface_gguf_models(query: str, limit: int = 10) -> dict[str, Any
 
 LLAMA_COMPLETION = os.environ.get(
     "MONOLITH_LLAMA_COMPLETION",
-    str(Path.home() / "Projects/local-llm/llama.cpp/build-cuda-sm120/bin/llama-completion"),
+    str(ROOT / "llama.cpp" / "build" / "bin" / "llama-completion"),
 )
 LLAMA_TOKENIZE = os.environ.get(
     "MONOLITH_LLAMA_TOKENIZE",
-    str(Path.home() / "Projects/local-llm/llama.cpp/build-cuda-sm120/bin/llama-tokenize"),
+    str(ROOT / "llama.cpp" / "build" / "bin" / "llama-tokenize"),
 )
 
 GEMMA_12B_Q5 = os.environ.get(
     "MONOLITH_GEMMA_12B_Q5",
-    str(
-        Path.home()
-        / "Projects/local-llm/models/gguf-quants/gemma-4-12b-it-unsloth/gemma-4-12b-it-UD-Q5_K_XL.gguf"
-    ),
+    str(ROOT / "models" / "gemma-4-12b-it-UD-Q5_K_XL.gguf"),
 )
 
 QWEN35B_A3B = os.environ.get(
     "MONOLITH_QWEN35B_A3B",
-    str(
-        Path.home()
-        / "Projects/local-llm/llama.cpp-models/qwen3.6-35b-a3b/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
-    ),
+    str(ROOT / "models" / "Qwen3.6-35B-A3B-UD-IQ2_M.gguf"),
 )
 
 CHAT_PROFILES = load_chat_profiles()

@@ -16,13 +16,15 @@ Monolith supports these optional overrides:
     MONOLITH_MODELS_CONFIG
     MONOLITH_MODEL_INVENTORY_ROOTS
     MONOLITH_MODEL_DOWNLOAD_ROOT
+    MONOLITH_QUANT_LAB_ROOT
 
 Defaults:
 
     MONOLITH_DB_PATH=./data/llm-tests.sqlite
     MONOLITH_MODELS_CONFIG=./configs/models.yaml
-    MONOLITH_MODEL_INVENTORY_ROOTS=~/Monolith/models:~/Projects/local-llm/models:~/Projects/local-llm/llama.cpp-models
+    MONOLITH_MODEL_INVENTORY_ROOTS=~/Monolith/models
     MONOLITH_MODEL_DOWNLOAD_ROOT=~/Monolith/models/huggingface
+    MONOLITH_QUANT_LAB_ROOT=./quant-lab
 
 Monolith does not automatically load `.env` yet. Export variables in your shell or service wrapper before starting uvicorn.
 
