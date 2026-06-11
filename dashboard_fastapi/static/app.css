@@ -3210,3 +3210,226 @@ a[href="/agents/new"] {
     inset 0 -2px 0 rgba(198, 255, 51, 0.26),
     0 0 18px rgba(198, 255, 51, 0.07) !important;
 }
+
+/* ==========================================================================
+   Monolith alpha v0.11.5 — WumboCore refinement override
+
+   Goal:
+   - neutral monochrome workbench base
+   - lime only as a restrained active/signal accent
+   - reduce green wash from earlier terminal theme layers
+   ========================================================================== */
+
+:root {
+  --wumbo-bg: #0D0F14;
+  --wumbo-panel: #101216;
+  --wumbo-elevated: #171A21;
+  --wumbo-border: #2A2F38;
+  --wumbo-cool-gray: #9AA3AC;
+  --wumbo-text: #F2F2F2;
+  --wumbo-body: #C9CED6;
+  --wumbo-muted: #8E96A3;
+  --wumbo-lime: #C6FF33;
+  --wumbo-warning: #E6D26A;
+  --wumbo-error: #F26D6D;
+
+  --bg: var(--wumbo-bg);
+  --surface: var(--wumbo-panel);
+  --overlay: var(--wumbo-elevated);
+  --panel: var(--wumbo-panel);
+  --panel-soft: var(--wumbo-elevated);
+  --border: var(--wumbo-border);
+  --text: var(--wumbo-text);
+  --muted: var(--wumbo-muted);
+  --accent: var(--wumbo-lime);
+  --accent-2: var(--wumbo-cool-gray);
+  --danger: var(--wumbo-error);
+}
+
+html,
+body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(198, 255, 51, 0.018), transparent 34rem),
+    linear-gradient(180deg, #0D0F14 0%, #0D0F14 42%, #101216 100%) !important;
+  color: var(--wumbo-body) !important;
+}
+
+.sidebar,
+.topbar {
+  background: rgba(16, 18, 22, 0.96) !important;
+  border-color: var(--wumbo-border) !important;
+}
+
+.sidebar-title,
+.brand,
+h1,
+h2,
+h3,
+.metric-value {
+  color: var(--wumbo-text) !important;
+}
+
+.sidebar-subtitle,
+.nav-section,
+.metric-label,
+.muted,
+.page-subtitle,
+.eyebrow {
+  color: var(--wumbo-muted) !important;
+}
+
+.sidebar-nav a {
+  color: var(--wumbo-body) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.sidebar-nav a:hover,
+.sidebar-nav a.active {
+  color: var(--wumbo-text) !important;
+  background: rgba(198, 255, 51, 0.055) !important;
+  border-color: rgba(198, 255, 51, 0.24) !important;
+  box-shadow: none !important;
+}
+
+.card,
+.chart-card,
+.chat-panel,
+.chat-notes,
+.agent-card,
+.testbench-card,
+.eval-category-card,
+.eval-prompt-summary,
+.context-family-card,
+.controlled-context-panel,
+.model-detail-card,
+.download-detail-card,
+section,
+.panel {
+  background: rgba(16, 18, 22, 0.92) !important;
+  border-color: var(--wumbo-border) !important;
+  box-shadow: none !important;
+}
+
+.card:hover,
+.chart-card:hover,
+.agent-card:hover,
+.testbench-card:hover,
+.eval-category-card:hover {
+  border-color: rgba(198, 255, 51, 0.20) !important;
+}
+
+table,
+.subtle-table,
+.run-table {
+  background: var(--wumbo-panel) !important;
+  border-color: var(--wumbo-border) !important;
+}
+
+thead,
+thead tr,
+th {
+  background: var(--wumbo-elevated) !important;
+  color: var(--wumbo-muted) !important;
+  border-color: var(--wumbo-border) !important;
+}
+
+td,
+tr {
+  border-color: rgba(42, 47, 56, 0.75) !important;
+}
+
+tbody tr:hover {
+  background: rgba(198, 255, 51, 0.026) !important;
+}
+
+a {
+  color: var(--wumbo-lime);
+}
+
+a:hover {
+  color: var(--wumbo-text);
+}
+
+button,
+.button,
+.agent-action-button,
+.chat-action-button,
+.testbench-tab,
+input,
+select,
+textarea {
+  background: #0D0F14 !important;
+  color: var(--wumbo-text) !important;
+  border-color: var(--wumbo-border) !important;
+  box-shadow: none !important;
+}
+
+button:hover,
+.button:hover,
+.agent-action-button:hover,
+.chat-action-button:hover,
+.testbench-tab:hover {
+  border-color: rgba(198, 255, 51, 0.26) !important;
+  color: var(--wumbo-lime) !important;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: rgba(198, 255, 51, 0.32) !important;
+  box-shadow: 0 0 0 2px rgba(198, 255, 51, 0.07) !important;
+}
+
+.status-pill {
+  background: #0D0F14 !important;
+  border-color: var(--wumbo-border) !important;
+  color: var(--wumbo-muted) !important;
+}
+
+.status-good,
+.status-ok,
+.status-success,
+.status-scored {
+  border-color: rgba(198, 255, 51, 0.24) !important;
+  color: var(--wumbo-lime) !important;
+}
+
+.status-warn,
+.status-warning {
+  border-color: rgba(230, 210, 106, 0.35) !important;
+  color: var(--wumbo-warning) !important;
+}
+
+.status-bad,
+.status-failed,
+.status-error,
+.status-danger {
+  border-color: rgba(242, 109, 109, 0.35) !important;
+  color: var(--wumbo-error) !important;
+}
+
+pre,
+code,
+.chat-message,
+.response-card,
+.run-card {
+  background: #0D0F14 !important;
+  color: var(--wumbo-body) !important;
+  border-color: var(--wumbo-border) !important;
+}
+
+.system-strip,
+.system-metrics,
+.topbar-metrics {
+  background: #0D0F14 !important;
+  border-color: var(--wumbo-border) !important;
+}
+
+.system-strip strong,
+.system-metrics strong,
+.topbar-metrics strong {
+  color: var(--wumbo-lime) !important;
+}
