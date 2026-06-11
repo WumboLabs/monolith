@@ -1809,14 +1809,43 @@ def agent_lab_rows(query: str, params: tuple = ()) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def load_agent_sessions() -> list[dict]:
+def load_agent_sessions(include_closed: bool = False) -> list[dict]:
+    if include_closed:
+        return agent_lab_rows(
+            """
+            SELECT *
+            FROM agent_sessions
+            ORDER BY datetime(created_at) DESC, id DESC
+            """
+        )
+
     return agent_lab_rows(
         """
         SELECT *
         FROM agent_sessions
+        WHERE closed_at IS NULL
         ORDER BY datetime(created_at) DESC, id DESC
         """
     )
+
+
+def archive_agent_session(session_id: int) -> bool:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE agent_sessions
+            SET closed_at = COALESCE(closed_at, datetime('now')),
+                status = CASE
+                    WHEN status = 'draft' THEN 'archived'
+                    ELSE status
+                END,
+                updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (session_id,),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 def load_agent_session(session_id: int) -> dict | None:
@@ -6203,6 +6232,15 @@ async def agent_lab_create(request: Request):
         safety_notes=field("safety_notes") or None,
     )
     return RedirectResponse(url=f"/agents/{session_id}", status_code=303)
+
+
+@app.post("/agents/{session_id}/archive")
+def agent_lab_archive(session_id: int):
+    archived = archive_agent_session(session_id)
+    if not archived:
+        raise HTTPException(status_code=404, detail=f"Agent session not found: {session_id}")
+
+    return RedirectResponse(url="/agents", status_code=303)
 
 
 @app.get("/agents/{session_id}", response_class=HTMLResponse)

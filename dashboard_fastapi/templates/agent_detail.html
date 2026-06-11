@@ -9,6 +9,11 @@
   </div>
   <div class="page-actions">
     <a class="testbench-tab agent-action-button secondary" href="/agents"><span class="tab-kicker">←</span><span>Back to sessions</span></a>
+    {% if not session.closed_at %}
+    <form method="post" action="/agents/{{ session.id }}/archive" onsubmit="return confirm('Archive this Agent Lab session? It will be hidden from the default session list.');">
+      <button class="testbench-tab agent-action-button secondary" type="submit"><span class="tab-kicker">×</span><span>Archive session</span></button>
+    </form>
+    {% endif %}
   </div>
 </section>
 
