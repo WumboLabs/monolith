@@ -1,3 +1,12 @@
+## alpha v0.11.6 - 2026-06-11
+
+- Hardened Workstation system monitoring for other users and machines.
+- Added explicit available/error states for CPU, memory, disk, and GPU stats.
+- Added root filesystem disk usage to the Workstation page and status ticker.
+- Made NVIDIA GPU monitoring optional through nvidia-smi detection.
+- Updated Workstation rendering so unavailable metrics show n/a or explanatory notes instead of breaking the page.
+- Updated the top system ticker to consume the hardened monitoring payload.
+
 ## alpha v0.11.5 - 2026-06-11
 
 - Applied the WumboCore / Monochrome Lime palette to the app theme.
