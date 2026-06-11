@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>{{ row.filename }}</h1>
+    <p class="muted">Local GGUF inventory item #{{ row.id }}</p>
+  </div>
+
+  <div class="detail-status-stack">
+    {% if row.status == "registered" %}
+      <span class="status-pill status-good">REGISTERED</span>
+    {% else %}
+      <span class="status-pill">DISCOVERED</span>
+    {% endif %}
+
+    {% if row.path_exists %}
+      <span class="status-pill status-good">FOUND</span>
+    {% else %}
+      <span class="status-pill status-bad">MISSING</span>
+    {% endif %}
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Family</div>
+    <div class="metric-value metric-small">{{ row.family_guess or "unknown" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Quant</div>
+    <div class="metric-value metric-small">{{ row.quant_guess or "unknown" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Architecture</div>
+    <div class="metric-value metric-small">{{ row.architecture_guess or "unknown" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Size</div>
+    <div class="metric-value">{{ row.size_gib }} GiB</div>
+  </div>
+</section>
+
+<section class="run-file-strip">
+  <a href="/models">Back to Models</a>
+  {% if row.path_exists %}
+    <span class="micro-muted">Local file exists</span>
+  {% endif %}
+</section>
+
+<section class="dashboard-panel">
+  <h2>Model file metadata</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>ID</th><td>{{ row.id }}</td></tr>
+      <tr><th>Filename</th><td>{{ row.filename }}</td></tr>
+      <tr><th>Path</th><td><code>{{ row.local_path }}</code></td></tr>
+      <tr><th>Scan root</th><td><code>{{ row.scan_root }}</code></td></tr>
+      <tr><th>Size bytes</th><td>{{ row.size_bytes }}</td></tr>
+      <tr><th>Modified</th><td>{{ row.modified_at or "—" }}</td></tr>
+      <tr><th>Created</th><td>{{ row.created_at }}</td></tr>
+      <tr><th>Updated</th><td>{{ row.updated_at }}</td></tr>
+      <tr><th>Notes</th><td>{{ row.notes or "—" }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Registered usage</h2>
+
+  {% if row.registered_model_key %}
+    <p><strong>Catalog model:</strong> <code>{{ row.registered_model_key }}</code></p>
+  {% endif %}
+
+  {% if row.registered_profile_keys %}
+    <p><strong>Chat profiles:</strong></p>
+    <div class="model-tags">
+      {% for key in row.registered_profile_keys %}
+        <span class="status-pill">{{ key }}</span>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">No chat profiles currently reference this model.</p>
+  {% endif %}
+
+  {% if row.generated_profile_keys %}
+    <p class="muted">Generated SQLite profiles are included above.</p>
+  {% endif %}
+</section>
+
+<section class="dashboard-panel">
+  <h2>Actions</h2>
+
+  <button
+    type="button"
+    class="small-button create-chat-profile-button"
+    data-model-id="{{ row.id }}"
+    data-filename="{{ row.filename }}"
+  >
+    Create chat profile
+  </button>
+</section>
+
+<script>
+  document.querySelectorAll(".create-chat-profile-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const modelId = button.dataset.modelId;
+      const filename = button.dataset.filename || "this model";
+
+      if (!confirm(`Create a chat profile for ${filename}?`)) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Creating...";
+
+      try {
+        const response = await fetch(`/api/models/local/${modelId}/create-chat-profile`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({}),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to create chat profile.");
+        }
+
+        alert(data.message || `Created chat profile: ${data.profile_key}`);
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || String(error));
+        button.disabled = false;
+        button.textContent = "Create chat profile";
+      }
+    });
+  });
+</script>
+
+{% endblock %}

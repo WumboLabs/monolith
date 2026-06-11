@@ -1,0 +1,57 @@
+# Monolith alpha example model config
+#
+# Copy this file to:
+#   configs/models.yaml
+#
+# Then edit paths for your machine.
+#
+# Requirements:
+# - llama.cpp built locally
+# - a GGUF model file available locally
+#
+# If you do not have a model yet:
+# - start Monolith
+# - open /models
+# - use Hugging Face GGUF discovery
+# - plan and start a controlled download
+# - copy the downloaded .gguf path into this file
+
+models:
+  example-local-gguf:
+    kind: catalog
+    label: Example Local GGUF
+    family: example
+    quant: Q4_K_M
+    status: example
+    model: /home/YOUR_USER/Monolith/models/huggingface/OWNER--REPO/model-file.gguf
+    launcher: /home/YOUR_USER/Monolith/llama.cpp/build/bin/llama-cli
+    notes:
+      - Replace this entry with your own local GGUF model path.
+      - Replace launcher with your llama.cpp llama-cli path.
+
+chat_profiles:
+  example-local-gguf-chat:
+    kind: chat_profile
+    label: Example Local GGUF Chat
+    family: example
+    quant: Q4_K_M
+    active: true
+    model: /home/YOUR_USER/Monolith/models/huggingface/OWNER--REPO/model-file.gguf
+    launcher: /home/YOUR_USER/Monolith/llama.cpp/build/bin/llama-cli
+    ctx_size: 8192
+    batch_size: 256
+    ubatch_size: 64
+    gpu_layers: 999
+    temperature: 0.2
+    max_tokens: 800
+
+    # Optional advanced llama.cpp arguments.
+    # Use a YAML list, not a single shell string.
+    # These are appended to Monolith's normal llama.cpp argument list.
+    extra_args:
+      - --no-mmproj
+
+    notes:
+      - Public alpha example profile.
+      - Edit paths before use.
+      - extra_args is optional and intended for advanced llama.cpp flags.

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>Download job #{{ job.id }}</h1>
+    <p class="muted">{{ job.filename }} · {{ job.source_repo_id }}</p>
+  </div>
+
+  <div class="detail-status-stack">
+    {% if job.status == "completed" %}
+      <span class="status-pill status-good">COMPLETED</span>
+    {% elif job.status == "failed" %}
+      <span class="status-pill status-bad">FAILED</span>
+    {% elif job.status == "running" %}
+      <span class="status-pill status-warn">RUNNING</span>
+    {% else %}
+      <span class="status-pill">{{ job.status }}</span>
+    {% endif %}
+  </div>
+</div>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Progress</div>
+    <div class="metric-value metric-small">{{ job.progress_display }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Downloaded</div>
+    <div class="metric-value metric-small">{{ job.bytes_downloaded_display }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Expected size</div>
+    <div class="metric-value metric-small">{{ job.expected_size_display }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Runtime</div>
+    <div class="metric-value metric-small">{{ job.runtime_display or "—" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Speed</div>
+    <div class="metric-value metric-small">{{ job.transfer_rate_display or "—" }}</div>
+  </div>
+</section>
+
+<section class="run-file-strip">
+  <a href="/models">Back to Models</a>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Download metadata</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>ID</th><td>{{ job.id }}</td></tr>
+      <tr><th>Status</th><td>{{ job.status }}</td></tr>
+      <tr><th>Source type</th><td>{{ job.source_type }}</td></tr>
+      <tr><th>Repository</th><td>{{ job.source_repo_id }}</td></tr>
+      <tr><th>Filename</th><td>{{ job.filename }}</td></tr>
+      <tr><th>Source URL</th><td><code>{{ job.source_url }}</code></td></tr>
+      <tr><th>Destination</th><td><code>{{ job.destination_path }}</code></td></tr>
+      <tr><th>Destination exists</th><td>{{ job.destination_exists }}</td></tr>
+      <tr><th>Overwrite existing</th><td>{{ job.overwrite_existing }}</td></tr>
+      <tr><th>Created</th><td>{{ job.created_at }}</td></tr>
+      <tr><th>Started</th><td>{{ job.started_at or "—" }}</td></tr>
+      <tr><th>Completed</th><td>{{ job.completed_at or "—" }}</td></tr>
+      <tr><th>Error</th><td>{{ job.error_text or "—" }}</td></tr>
+      <tr><th>Notes</th><td>{{ job.notes or "—" }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{% endblock %}

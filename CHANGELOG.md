@@ -1,3 +1,17 @@
+## alpha v0.11.4 - 2026-06-11
+
+- Added generated SQLite chat profiles for local GGUF models.
+- Added Models workflow support for creating chat profiles from local inventory rows.
+- Added local model and download job detail pages.
+- Added clear-planned-downloads support for planned downloader jobs.
+- Added public alpha install/config/downloader/tester/troubleshooting docs.
+- Added `requirements.txt` and `.env.example`.
+- Added `configs/models.example.yaml` as a public-safe model config template.
+- Added `prompts/local/` scaffold for private/user-created prompts.
+- Removed hardcoded personal model profile notes from the Chat sidebar.
+- Generalized bundled chat prompt text away from machine-specific assumptions.
+- Added roadmap note for a future WumboCore / Monochrome Lime theme pass.
+
 # Monolith Changelog
 
 ## alpha v0.11.3 - 2026-06-11
@@ -150,7 +164,7 @@ Public repository polish.
 
 ### Changed
 - Repositioned README around Monolith as a Local AI Workbench.
-- Replaced WumboJetsII-specific README framing with public-facing project language.
+- Replaced machine-specific README framing with public-facing project language.
 - Clarified alpha status, local configuration expectations, security posture, and license status.
 - Standardized project version to alpha v0.10.1 across README, VERSION, and app metadata.
 

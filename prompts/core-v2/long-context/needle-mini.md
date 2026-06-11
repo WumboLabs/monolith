@@ -4,9 +4,9 @@ Read the following context and answer the question at the end.
 
 Context:
 
-The workstation is named WumboJetsII.
+The workstation is named Atlas.
 The server is named wumboserver.
-The laptop is named WumboMobile.
+The laptop is named Nova.
 
 Several unrelated notes follow.
 

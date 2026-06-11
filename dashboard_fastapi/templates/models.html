@@ -132,6 +132,11 @@
         Config edits and model execution are not automatic.
       </p>
     </div>
+    <div>
+      <button type="button" class="small-button" id="clear-planned-downloads-button">
+        Clear planned downloads
+      </button>
+    </div>
   </div>
 
   {% if download_jobs %}
@@ -150,7 +155,10 @@
     <tbody id="download-jobs-body">
       {% for job in download_jobs %}
       <tr data-download-job-id="{{ job.id }}">
-        <td>#{{ job.id }}</td>
+        <td>
+          #{{ job.id }}
+          <div><a href="/models/downloads/{{ job.id }}">More info</a></div>
+        </td>
         <td>
           <span class="status-pill {% if job.status == 'completed' %}status-good{% elif job.status == 'failed' %}status-warn{% endif %}">
             {{ job.status }}
@@ -262,6 +270,7 @@
           <th>Size</th>
           <th>Registered usage</th>
           <th>Path</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -312,6 +321,18 @@
 
           <td>
             <div class="file-path model-path-clamp" title="{{ row.local_path }}">{{ row.local_path }}</div>
+          </td>
+
+          <td>
+            <button
+              type="button"
+              class="small-button create-chat-profile-button"
+              data-model-id="{{ row.id }}"
+              data-filename="{{ row.filename }}"
+            >
+              Create chat profile
+            </button>
+            <div><a href="/models/local/{{ row.id }}">More info</a></div>
           </td>
         </tr>
         {% endfor %}
@@ -805,6 +826,90 @@
       }
     });
   }
+
+  document.querySelectorAll(".create-chat-profile-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const modelId = button.dataset.modelId;
+      const filename = button.dataset.filename || "this model";
+
+      if (!modelId) {
+        alert("Missing local model ID.");
+        return;
+      }
+
+      const confirmed = confirm(`Create a chat profile for ${filename}?`);
+      if (!confirmed) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Creating...";
+
+      try {
+        const response = await fetch(`/api/models/local/${modelId}/create-chat-profile`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to create chat profile.");
+        }
+
+        if (data.created) {
+          alert(`Created chat profile: ${data.profile_key}`);
+        } else {
+          alert(data.message || `Chat profile already exists: ${data.profile_key}`);
+        }
+
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || String(error));
+        button.disabled = false;
+        button.textContent = "Create chat profile";
+      }
+    });
+  });
+
+
+  const clearPlannedDownloadsButton = document.getElementById("clear-planned-downloads-button");
+
+  if (clearPlannedDownloadsButton) {
+    clearPlannedDownloadsButton.addEventListener("click", async () => {
+      const confirmed = confirm("Clear all planned download jobs? Running and completed jobs will not be changed.");
+
+      if (!confirmed) {
+        return;
+      }
+
+      clearPlannedDownloadsButton.disabled = true;
+      clearPlannedDownloadsButton.textContent = "Clearing...";
+
+      try {
+        const response = await fetch("/api/models/downloads/clear-planned", {
+          method: "POST",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to clear planned downloads.");
+        }
+
+        alert(data.message || "Planned downloads cleared.");
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || String(error));
+        clearPlannedDownloadsButton.disabled = false;
+        clearPlannedDownloadsButton.textContent = "Clear planned downloads";
+      }
+    });
+  }
+
 </script>
 
 {% endblock %}

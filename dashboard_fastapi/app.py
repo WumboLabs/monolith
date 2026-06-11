@@ -15,6 +15,7 @@ import tempfile
 from typing import Any
 import sys
 import signal
+import json
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
@@ -24,8 +25,17 @@ from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = Path(__file__).resolve().parent
-DB_PATH = ROOT / "data" / "llm-tests.sqlite"
-MODELS_CONFIG = ROOT / "configs" / "models.yaml"
+
+
+def env_path(name: str, default: Path) -> Path:
+    value = os.environ.get(name)
+    if not value:
+        return default.expanduser()
+    return Path(value).expanduser()
+
+
+DB_PATH = env_path("MONOLITH_DB_PATH", ROOT / "data" / "llm-tests.sqlite")
+MODELS_CONFIG = env_path("MONOLITH_MODELS_CONFIG", ROOT / "configs" / "models.yaml")
 PROMPT_LIBRARY_ROOT = ROOT / "prompts"
 PROMPT_SUITE_ROOT = PROMPT_LIBRARY_ROOT / "core-v2"
 
@@ -50,7 +60,7 @@ EVAL_TASK_LOCK = threading.Lock()
 
 APP_NAME = "Monolith"
 APP_SUBTITLE = "Local AI Workbench"
-APP_VERSION = "alpha v0.11.3"
+APP_VERSION = "alpha v0.11.4"
 
 app = FastAPI(title="Monolith")
 
@@ -300,7 +310,48 @@ def load_chat_profiles() -> dict[str, dict[str, Any]]:
 
         active_profiles[key] = normalized
 
+    for key, profile in load_generated_chat_profiles().items():
+        if key in active_profiles:
+            continue
+        active_profiles[key] = profile
+
     return active_profiles
+
+
+def resolve_profile_launcher(profile: dict[str, Any]) -> str:
+    launcher = str(profile.get("launcher") or "").strip()
+    return launcher or LLAMA_COMPLETION
+
+
+def launcher_exists(launcher: str) -> bool:
+    if "/" in launcher:
+        return Path(launcher).expanduser().exists()
+
+    from shutil import which
+
+    return which(launcher) is not None
+
+
+def profile_extra_args(profile: dict[str, Any]) -> list[str]:
+    extra_args = profile.get("extra_args") or []
+
+    if not isinstance(extra_args, list):
+        return []
+
+    safe_args: list[str] = []
+
+    for item in extra_args:
+        value = str(item).strip()
+
+        if not value:
+            continue
+
+        if "\x00" in value or "\n" in value or "\r" in value:
+            continue
+
+        safe_args.append(value)
+
+    return safe_args
 
 
 def load_models_for_page() -> list[dict[str, Any]]:
@@ -349,7 +400,17 @@ def model_registry_tables_exist() -> bool:
 
 
 def approved_model_inventory_roots() -> list[Path]:
+    configured = os.environ.get("MONOLITH_MODEL_INVENTORY_ROOTS")
+
+    if configured:
+        return [
+            Path(item).expanduser()
+            for item in configured.split(":")
+            if item.strip()
+        ]
+
     return [
+        Path.home() / "Monolith/models",
         Path.home() / "Projects/local-llm/models",
         Path.home() / "Projects/local-llm/llama.cpp-models",
     ]
@@ -588,6 +649,272 @@ def scan_local_model_inventory() -> dict[str, Any]:
     }
 
 
+class CreateLocalModelChatProfileRequest(BaseModel):
+    profile_key: str | None = None
+    label: str | None = None
+    launcher: str | None = None
+    ctx_size: int = 8192
+    batch_size: int = 256
+    ubatch_size: int = 64
+    gpu_layers: int = 999
+    temperature: float = 0.2
+    max_tokens: int = 800
+    reasoning: str = "off"
+    extra_args: list[str] | None = None
+
+
+def safe_generated_profile_key(value: str) -> str:
+    key = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip().lower())
+    key = re.sub(r"-+", "-", key).strip("-_")
+    return key[:80] or "local-model"
+
+
+def unique_generated_profile_key(base_key: str) -> str:
+    yaml_profiles = (load_model_registry().get("chat_profiles", {}) or {})
+    key = safe_generated_profile_key(base_key)
+
+    suffix = 2
+    candidate = key
+
+    while True:
+        generated_match = None
+
+        if generated_chat_profiles_table_exists():
+            generated_match = db_one(
+                "SELECT id FROM generated_chat_profiles WHERE profile_key = ?",
+                (candidate,),
+            )
+
+        if candidate not in yaml_profiles and not generated_match:
+            return candidate
+
+        candidate = f"{key}-{suffix}"
+        suffix += 1
+
+
+def create_generated_chat_profile_from_local_model(
+    model_id: int,
+    payload: CreateLocalModelChatProfileRequest | None = None,
+) -> dict[str, Any]:
+    if payload is None:
+        payload = CreateLocalModelChatProfileRequest()
+
+    if not generated_chat_profiles_table_exists():
+        raise HTTPException(
+            status_code=500,
+            detail="generated_chat_profiles table is missing. Run scripts/migrate_generated_chat_profiles.py.",
+        )
+
+    row = db_one(
+        """
+        SELECT *
+        FROM local_model_files
+        WHERE id = ?
+        """,
+        (model_id,),
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Local model not found: {model_id}")
+
+    model_path = str(row.get("local_path") or "").strip()
+
+    if not model_path:
+        raise HTTPException(status_code=400, detail="Local model has no path.")
+
+    if not Path(model_path).expanduser().exists():
+        raise HTTPException(status_code=400, detail=f"Model file no longer exists: {model_path}")
+
+    existing = db_one(
+        """
+        SELECT *
+        FROM generated_chat_profiles
+        WHERE model_path = ?
+          AND active = 1
+        ORDER BY id ASC
+        LIMIT 1
+        """,
+        (model_path,),
+    )
+
+    if existing:
+        return {
+            "created": False,
+            "profile_key": existing["profile_key"],
+            "profile_id": existing["id"],
+            "model_path": existing["model_path"],
+            "message": "A generated chat profile already exists for this model.",
+        }
+
+    filename = str(row.get("filename") or Path(model_path).name)
+    stem = Path(filename).stem
+    family = row.get("family_guess") or "Local"
+    quant = row.get("quant_guess") or "GGUF"
+
+    requested_key = payload.profile_key or f"local-{stem}"
+    profile_key = unique_generated_profile_key(requested_key)
+    label = payload.label or f"{family} {quant} ({filename})"
+    launcher = str(payload.launcher or LLAMA_COMPLETION).strip()
+
+    extra_args = profile_extra_args({"extra_args": payload.extra_args if payload.extra_args is not None else []})
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO generated_chat_profiles (
+                profile_key,
+                label,
+                model_path,
+                launcher,
+                ctx_size,
+                batch_size,
+                ubatch_size,
+                gpu_layers,
+                temperature,
+                max_tokens,
+                reasoning,
+                extra_args_json,
+                source,
+                active
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                profile_key,
+                label,
+                model_path,
+                launcher,
+                max(1024, min(int(payload.ctx_size or 8192), 131072)),
+                max(1, int(payload.batch_size or 256)),
+                max(1, int(payload.ubatch_size or 64)),
+                int(payload.gpu_layers if payload.gpu_layers is not None else 999),
+                float(payload.temperature if payload.temperature is not None else 0.2),
+                max(64, min(int(payload.max_tokens or 800), 8192)),
+                str(payload.reasoning or "off"),
+                json.dumps(extra_args),
+                "local_inventory",
+            ),
+        )
+        conn.execute(
+            """
+            UPDATE local_model_files
+            SET status = 'registered',
+                registered_profile_keys_json = ?,
+                notes = COALESCE(notes, 'Registered through generated SQLite chat profile.'),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                json.dumps([profile_key]),
+                model_id,
+            ),
+        )
+        conn.commit()
+        profile_id = int(cursor.lastrowid)
+
+    return {
+        "created": True,
+        "profile_key": profile_key,
+        "profile_id": profile_id,
+        "model_path": model_path,
+        "launcher": launcher,
+        "extra_args": extra_args,
+    }
+
+
+def generated_chat_profiles_table_exists() -> bool:
+    if not DB_PATH.exists():
+        return False
+
+    row = db_one(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'generated_chat_profiles'
+        """
+    )
+
+    return bool(row)
+
+
+def load_generated_chat_profiles() -> dict[str, dict[str, Any]]:
+    if not generated_chat_profiles_table_exists():
+        return {}
+
+    rows = db_rows(
+        """
+        SELECT *
+        FROM generated_chat_profiles
+        WHERE active = 1
+        ORDER BY label ASC, profile_key ASC
+        """
+    )
+
+    profiles: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        try:
+            extra_args = json.loads(row.get("extra_args_json") or "[]")
+        except Exception:
+            extra_args = []
+
+        if not isinstance(extra_args, list):
+            extra_args = []
+
+        key = str(row["profile_key"])
+
+        profiles[key] = {
+            "label": row.get("label") or key,
+            "active": bool(row.get("active")),
+            "model": row.get("model_path"),
+            "launcher": row.get("launcher"),
+            "ctx_size": int(row.get("ctx_size") or 8192),
+            "batch_size": int(row.get("batch_size") or 256),
+            "ubatch_size": int(row.get("ubatch_size") or 64),
+            "gpu_layers": int(row.get("gpu_layers") or 999),
+            "temperature": float(row.get("temperature") or 0.2),
+            "max_tokens": int(row.get("max_tokens") or 800),
+            "reasoning": row.get("reasoning") or "off",
+            "extra_args": extra_args,
+            "source": row.get("source") or "generated",
+            "generated_profile_id": row.get("id"),
+            "notes": [
+                "Generated from local model inventory.",
+                "Stored in SQLite, not configs/models.yaml.",
+            ],
+        }
+
+    return profiles
+
+
+def generated_chat_profile_keys_by_model_path() -> dict[str, list[str]]:
+    if not generated_chat_profiles_table_exists():
+        return {}
+
+    rows = db_rows(
+        """
+        SELECT profile_key, model_path
+        FROM generated_chat_profiles
+        WHERE active = 1
+        ORDER BY profile_key ASC
+        """
+    )
+
+    mapping: dict[str, list[str]] = {}
+
+    for row in rows:
+        model_path = str(row.get("model_path") or "")
+        profile_key = str(row.get("profile_key") or "")
+
+        if not model_path or not profile_key:
+            continue
+
+        mapping.setdefault(model_path, []).append(profile_key)
+
+    return mapping
+
+
 def load_local_model_inventory(limit: int = 200) -> dict[str, Any]:
     empty = {
         "available": False,
@@ -612,11 +939,25 @@ def load_local_model_inventory(limit: int = 200) -> dict[str, Any]:
         (limit,),
     )
 
+    generated_profile_map = generated_chat_profile_keys_by_model_path()
+
     for row in rows:
         try:
             row["registered_profile_keys"] = __import__("json").loads(row.get("registered_profile_keys_json") or "[]")
         except Exception:
             row["registered_profile_keys"] = []
+
+        generated_profile_keys = generated_profile_map.get(str(row.get("local_path") or ""), [])
+        row["generated_profile_keys"] = generated_profile_keys
+
+        if generated_profile_keys:
+            combined_keys = list(dict.fromkeys(row["registered_profile_keys"] + generated_profile_keys))
+            row["registered_profile_keys"] = combined_keys
+
+            if row.get("status") == "discovered":
+                row["status"] = "registered"
+
+            row["notes"] = row.get("notes") or "Registered through generated SQLite chat profile."
 
         size_bytes = row.get("size_bytes") or 0
         row["size_gib"] = round(float(size_bytes) / (1024 ** 3), 2)
@@ -865,6 +1206,10 @@ QWEN35B_A3B = os.environ.get(
 CHAT_PROFILES = load_chat_profiles()
 
 
+def current_chat_profiles() -> dict[str, dict[str, Any]]:
+    return load_chat_profiles()
+
+
 class EvalRunRequest(BaseModel):
     profile: str
     ctx_size: int = 8192
@@ -946,7 +1291,7 @@ Assistant:
 """
 
     if mode == "technical":
-        return f"""You are a conservative technical AI assistant running locally on WumboJetsII.
+        return f"""You are a conservative technical AI assistant running locally through Monolith.
 
 Behavior for technical tasks:
 - Be precise.
@@ -962,7 +1307,7 @@ User:
 Assistant:
 """
 
-    return f"""You are a local AI assistant running on WumboJetsII.
+    return f"""You are a local AI assistant running through Monolith.
 
 Default behavior:
 - Answer the user's actual request directly.
@@ -978,7 +1323,7 @@ For technical Linux, Arch, Sway, Docker, ZFS, networking, homelab, llama.cpp, lo
 - Include verification and rollback steps when the task could affect system stability or data.
 
 For non-technical prompts:
-- Do not mention verification, rollback, system stability, Linux, homelab, or WumboJetsII unless relevant.
+- Do not mention verification, rollback, system stability, Linux, homelab, or local workstation details unless relevant.
 - Do not turn the request into a technical checklist.
 
 User:
@@ -1292,7 +1637,9 @@ def run_llama_chat(profile_name: str, prompt: str, max_tokens: int, mode: str = 
     safe_max_tokens = max(64, min(int(max_tokens), 8192))
     full_prompt = build_chat_prompt(prompt, mode=mode)
 
-    if profile_name not in CHAT_PROFILES:
+    profiles = current_chat_profiles()
+
+    if profile_name not in profiles:
         detail = f"Unknown profile: {profile_name}"
         run_id = save_failed_chat_run(
             profile_name=profile_name,
@@ -1308,11 +1655,12 @@ def run_llama_chat(profile_name: str, prompt: str, max_tokens: int, mode: str = 
             detail = f"{detail}\nFailed run saved as #{run_id}."
         raise HTTPException(status_code=400, detail=detail)
 
-    profile = CHAT_PROFILES[profile_name]
+    profile = profiles[profile_name]
     model_path = profile["model"]
+    launcher = resolve_profile_launcher(profile)
 
-    if not Path(LLAMA_COMPLETION).exists():
-        detail = f"llama-completion not found: {LLAMA_COMPLETION}"
+    if not launcher_exists(launcher):
+        detail = f"llama.cpp launcher not found: {launcher}"
         run_id = save_failed_chat_run(
             profile_name=profile_name,
             prompt=prompt,
@@ -1344,7 +1692,7 @@ def run_llama_chat(profile_name: str, prompt: str, max_tokens: int, mode: str = 
         raise HTTPException(status_code=500, detail=detail)
 
     cmd = [
-        LLAMA_COMPLETION,
+        launcher,
         "-m", model_path,
         "-ngl", str(profile.get("gpu_layers", 999)),
         "-c", str(profile["ctx_size"]),
@@ -1356,6 +1704,8 @@ def run_llama_chat(profile_name: str, prompt: str, max_tokens: int, mode: str = 
         "-n", str(safe_max_tokens),
         "-p", full_prompt,
     ]
+
+    cmd.extend(profile_extra_args(profile))
 
     result = run_command_capture_with_vram(cmd, timeout=300)
 
@@ -4270,6 +4620,8 @@ def run_agent_backend_eval_single(payload: AgentBackendEvalSingleRunRequest) -> 
         "-p", full_prompt,
     ]
 
+    cmd.extend(profile_extra_args(profile))
+
     result = run_command_capture_with_vram(cmd, timeout=600)
 
     raw_output = result.get("stdout") or ""
@@ -4809,7 +5161,10 @@ def model_downloader_tables_exist() -> bool:
 
 
 def approved_model_download_root() -> Path:
-    return Path.home() / "Projects/local-llm/models/huggingface"
+    return env_path(
+        "MONOLITH_MODEL_DOWNLOAD_ROOT",
+        Path.home() / "Monolith/models/huggingface",
+    )
 
 
 def safe_download_repo_dir(repo_id: str) -> str:
@@ -5390,6 +5745,121 @@ def api_models_local_inventory_scan():
     return scan_local_model_inventory()
 
 
+@app.post("/api/models/downloads/clear-planned")
+def api_models_downloads_clear_planned():
+    if not model_downloader_tables_exist():
+        raise HTTPException(
+            status_code=500,
+            detail="model_download_jobs table is missing. Run scripts/migrate_model_downloader.py.",
+        )
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM model_download_jobs
+            WHERE status = 'planned'
+            """
+        )
+        conn.commit()
+        deleted = int(cursor.rowcount or 0)
+
+    return {
+        "deleted": deleted,
+        "message": f"Cleared {deleted} planned download job(s).",
+    }
+
+
+@app.post("/api/models/local/{model_id}/create-chat-profile")
+def api_models_local_create_chat_profile(
+    model_id: int,
+    payload: CreateLocalModelChatProfileRequest | None = None,
+):
+    return create_generated_chat_profile_from_local_model(model_id, payload)
+
+
+def load_local_model_detail(model_id: int) -> dict[str, Any]:
+    if not model_registry_tables_exist():
+        raise HTTPException(
+            status_code=500,
+            detail="local_model_files table is missing. Run scripts/migrate_model_registry.py.",
+        )
+
+    row = db_one(
+        """
+        SELECT *
+        FROM local_model_files
+        WHERE id = ?
+        """,
+        (model_id,),
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Local model not found: {model_id}")
+
+    try:
+        row["registered_profile_keys"] = json.loads(row.get("registered_profile_keys_json") or "[]")
+    except Exception:
+        row["registered_profile_keys"] = []
+
+    generated_profile_map = generated_chat_profile_keys_by_model_path()
+    row["generated_profile_keys"] = generated_profile_map.get(str(row.get("local_path") or ""), [])
+
+    if row["generated_profile_keys"]:
+        row["registered_profile_keys"] = list(
+            dict.fromkeys(row["registered_profile_keys"] + row["generated_profile_keys"])
+        )
+
+    if row["registered_profile_keys"] and row.get("status") == "discovered":
+        row["status"] = "registered"
+
+    size_bytes = int(row.get("size_bytes") or 0)
+    row["size_gib"] = round(float(size_bytes) / (1024 ** 3), 2)
+    row["path_exists"] = Path(str(row.get("local_path") or "")).expanduser().exists()
+
+    return row
+
+
+def load_model_download_job_detail(job_id: int) -> dict[str, Any]:
+    if not model_downloader_tables_exist():
+        raise HTTPException(
+            status_code=500,
+            detail="model_download_jobs table is missing. Run scripts/migrate_model_downloader.py.",
+        )
+
+    row = get_model_download_job(job_id)
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Download job not found: {job_id}")
+
+    return enrich_model_download_job(row)
+
+
+@app.get("/models/local/{model_id}", response_class=HTMLResponse)
+def model_local_detail(request: Request, model_id: int):
+    row = load_local_model_detail(model_id)
+
+    return templates.TemplateResponse(
+        request,
+        "model_local_detail.html",
+        {
+            "row": row,
+        },
+    )
+
+
+@app.get("/models/downloads/{job_id}", response_class=HTMLResponse)
+def model_download_detail(request: Request, job_id: int):
+    job = load_model_download_job_detail(job_id)
+
+    return templates.TemplateResponse(
+        request,
+        "model_download_detail.html",
+        {
+            "job": job,
+        },
+    )
+
+
 @app.get("/models", response_class=HTMLResponse)
 def models(request: Request):
     rows = load_models_for_page()
@@ -5443,7 +5913,7 @@ def chat(request: Request):
         request,
         "chat.html",
         {
-            "profiles": CHAT_PROFILES,
+            "profiles": current_chat_profiles(),
         },
     )
 
