@@ -9,7 +9,9 @@ import yaml
 import socket
 import time
 import os
+import platform
 import re
+import shutil
 import subprocess
 import tempfile
 from typing import Any
@@ -6039,38 +6041,111 @@ def read_meminfo() -> dict[str, int]:
     return values
 
 
-def get_workstation_stats() -> dict[str, Any]:
+def _read_linux_meminfo() -> dict[str, int]:
+    meminfo_path = Path("/proc/meminfo")
+    if not meminfo_path.exists():
+        return {}
+
+    values: dict[str, int] = {}
+    try:
+        for line in meminfo_path.read_text().splitlines():
+            if ":" not in line:
+                continue
+            key, raw_value = line.split(":", 1)
+            parts = raw_value.strip().split()
+            if not parts:
+                continue
+            values[key] = int(parts[0])
+    except (OSError, ValueError):
+        return {}
+
+    return values
+
+
+def _get_memory_stats() -> dict[str, Any]:
+    meminfo = _read_linux_meminfo()
+    total_kib = meminfo.get("MemTotal")
+    available_kib = meminfo.get("MemAvailable")
+
+    if not total_kib or available_kib is None:
+        return {
+            "available": False,
+            "used_mib": None,
+            "total_mib": None,
+            "used_percent": None,
+            "error": "memory stats unavailable",
+        }
+
+    used_kib = max(total_kib - available_kib, 0)
+    return {
+        "available": True,
+        "used_mib": round(used_kib / 1024),
+        "total_mib": round(total_kib / 1024),
+        "used_percent": round((used_kib / total_kib) * 100, 1) if total_kib else None,
+        "error": None,
+    }
+
+
+def _get_cpu_stats() -> dict[str, Any]:
     cpu_count = os.cpu_count() or 1
 
     try:
         load_1m, load_5m, load_15m = os.getloadavg()
-    except OSError:
-        load_1m, load_5m, load_15m = 0.0, 0.0, 0.0
+        load_available = True
+        error = None
+    except (AttributeError, OSError):
+        load_1m = load_5m = load_15m = None
+        load_available = False
+        error = "load average unavailable"
 
-    meminfo = read_meminfo()
-    mem_total_mib = None
-    mem_used_mib = None
-    mem_used_percent = None
+    return {
+        "available": load_available,
+        "cores": cpu_count,
+        "load_1m": round(load_1m, 2) if load_1m is not None else None,
+        "load_5m": round(load_5m, 2) if load_5m is not None else None,
+        "load_15m": round(load_15m, 2) if load_15m is not None else None,
+        "load_percent": round((load_1m / cpu_count) * 100, 1) if load_1m is not None and cpu_count else None,
+        "error": error,
+    }
 
-    if meminfo:
-        total_kib = meminfo.get("MemTotal")
-        available_kib = meminfo.get("MemAvailable")
 
-        if total_kib and available_kib:
-            used_kib = total_kib - available_kib
-            mem_total_mib = round(total_kib / 1024)
-            mem_used_mib = round(used_kib / 1024)
-            mem_used_percent = round((used_kib / total_kib) * 100, 1)
+def _get_disk_stats(path: str = "/") -> dict[str, Any]:
+    try:
+        usage = shutil.disk_usage(path)
+    except OSError as exc:
+        return {
+            "available": False,
+            "path": path,
+            "used_gib": None,
+            "total_gib": None,
+            "free_gib": None,
+            "used_percent": None,
+            "error": str(exc),
+        }
 
+    used = usage.total - usage.free
+    return {
+        "available": True,
+        "path": path,
+        "used_gib": round(used / (1024 ** 3), 1),
+        "total_gib": round(usage.total / (1024 ** 3), 1),
+        "free_gib": round(usage.free / (1024 ** 3), 1),
+        "used_percent": round((used / usage.total) * 100, 1) if usage.total else None,
+        "error": None,
+    }
+
+
+def _get_gpu_stats() -> dict[str, Any]:
     gpu = {
         "available": False,
+        "vendor": None,
         "util_percent": None,
         "vram_used_mib": None,
         "vram_total_mib": None,
         "vram_used_percent": None,
         "temperature_c": None,
         "power_w": None,
-        "error": None,
+        "error": "GPU monitor unavailable",
     }
 
     nvidia_query = [
@@ -6088,30 +6163,27 @@ def get_workstation_stats() -> dict[str, Any]:
             stderr=subprocess.PIPE,
             timeout=2,
         )
-
         if completed.returncode == 0 and completed.stdout.strip():
             first_gpu = completed.stdout.strip().splitlines()[0]
             parts = [part.strip() for part in first_gpu.split(",")]
-
             util = float(parts[0])
             vram_used = float(parts[1])
             vram_total = float(parts[2])
-            temp = float(parts[3])
-            power = float(parts[4]) if len(parts) > 4 and parts[4] else None
-
-            gpu = {
+            temperature = float(parts[3])
+            power = float(parts[4]) if parts[4] not in {"", "[Not Supported]"} else None
+            return {
                 "available": True,
+                "vendor": "nvidia",
                 "util_percent": round(util, 1),
                 "vram_used_mib": round(vram_used),
                 "vram_total_mib": round(vram_total),
                 "vram_used_percent": round((vram_used / vram_total) * 100, 1) if vram_total else None,
-                "temperature_c": round(temp, 1),
+                "temperature_c": round(temperature, 1),
                 "power_w": round(power, 1) if power is not None else None,
                 "error": None,
             }
-        else:
-            gpu["error"] = completed.stderr.strip()[-500:] or "nvidia-smi returned no data"
 
+        gpu["error"] = completed.stderr.strip()[-500:] or "nvidia-smi returned no GPU data"
     except FileNotFoundError:
         gpu["error"] = "nvidia-smi not found"
     except subprocess.TimeoutExpired:
@@ -6119,22 +6191,22 @@ def get_workstation_stats() -> dict[str, Any]:
     except (ValueError, IndexError) as exc:
         gpu["error"] = f"failed to parse nvidia-smi output: {exc}"
 
-    return {
-        "cpu": {
-            "load_1m": round(load_1m, 2),
-            "load_5m": round(load_5m, 2),
-            "load_15m": round(load_15m, 2),
-            "cores": cpu_count,
-            "load_percent": round((load_1m / cpu_count) * 100, 1),
-        },
-        "memory": {
-            "used_mib": mem_used_mib,
-            "total_mib": mem_total_mib,
-            "used_percent": mem_used_percent,
-        },
-        "gpu": gpu,
-    }
+    return gpu
 
+
+def get_workstation_stats() -> dict[str, Any]:
+    return {
+        "host": {
+            "hostname": platform.node() or "unknown",
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+        },
+        "cpu": _get_cpu_stats(),
+        "memory": _get_memory_stats(),
+        "disk": _get_disk_stats("/"),
+        "gpu": _get_gpu_stats(),
+        "sampled_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+    }
 
 @app.get("/api/workstation-stats")
 def api_workstation_stats():

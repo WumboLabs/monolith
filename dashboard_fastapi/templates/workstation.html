@@ -10,20 +10,54 @@
 <section class="cards workstation-cards">
   <div class="card">
     <div class="metric-label">CPU load</div>
-    <div class="metric-value">{{ stats.cpu.load_percent }}%</div>
+    <div class="metric-value">
+      {% if stats.cpu.available and stats.cpu.load_percent is not none %}
+        {{ stats.cpu.load_percent }}%
+      {% else %}
+        n/a
+      {% endif %}
+    </div>
     <div class="metric-subvalue">
-      Load avg {{ stats.cpu.load_1m }} / {{ stats.cpu.cores }} threads
+      {% if stats.cpu.available %}
+        Load avg {{ stats.cpu.load_1m }} / {{ stats.cpu.cores }} threads
+      {% else %}
+        {{ stats.cpu.error or "CPU load unavailable" }}
+      {% endif %}
     </div>
   </div>
 
   <div class="card">
     <div class="metric-label">RAM</div>
-    <div class="metric-value">{{ stats.memory.used_percent or "n/a" }}%</div>
-    <div class="metric-subvalue">
-      {% if stats.memory.used_mib and stats.memory.total_mib %}
-        {{ "%.1f"|format(stats.memory.used_mib / 1024) }} / {{ "%.1f"|format(stats.memory.total_mib / 1024) }} GiB
+    <div class="metric-value">
+      {% if stats.memory.available and stats.memory.used_percent is not none %}
+        {{ stats.memory.used_percent }}%
       {% else %}
         n/a
+      {% endif %}
+    </div>
+    <div class="metric-subvalue">
+      {% if stats.memory.available and stats.memory.used_mib and stats.memory.total_mib %}
+        {{ "%.1f"|format(stats.memory.used_mib / 1024) }} / {{ "%.1f"|format(stats.memory.total_mib / 1024) }} GiB
+      {% else %}
+        {{ stats.memory.error or "Memory stats unavailable" }}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Root disk</div>
+    <div class="metric-value">
+      {% if stats.disk.available and stats.disk.used_percent is not none %}
+        {{ stats.disk.used_percent }}%
+      {% else %}
+        n/a
+      {% endif %}
+    </div>
+    <div class="metric-subvalue">
+      {% if stats.disk.available %}
+        {{ stats.disk.used_gib }} / {{ stats.disk.total_gib }} GiB used on {{ stats.disk.path }}
+      {% else %}
+        {{ stats.disk.error or "Disk stats unavailable" }}
       {% endif %}
     </div>
   </div>
@@ -31,7 +65,7 @@
   <div class="card">
     <div class="metric-label">GPU load</div>
     <div class="metric-value">
-      {% if stats.gpu.available %}
+      {% if stats.gpu.available and stats.gpu.util_percent is not none %}
         {{ stats.gpu.util_percent }}%
       {% else %}
         n/a
@@ -39,9 +73,9 @@
     </div>
     <div class="metric-subvalue">
       {% if stats.gpu.available %}
-        NVIDIA GPU detected
+        {{ stats.gpu.vendor|upper }} GPU detected
       {% else %}
-        {{ stats.gpu.error or "GPU unavailable" }}
+        {{ stats.gpu.error or "GPU monitor unavailable" }}
       {% endif %}
     </div>
   </div>
@@ -49,17 +83,17 @@
   <div class="card">
     <div class="metric-label">VRAM</div>
     <div class="metric-value">
-      {% if stats.gpu.available %}
+      {% if stats.gpu.available and stats.gpu.vram_used_percent is not none %}
         {{ stats.gpu.vram_used_percent }}%
       {% else %}
         n/a
       {% endif %}
     </div>
     <div class="metric-subvalue">
-      {% if stats.gpu.available %}
+      {% if stats.gpu.available and stats.gpu.vram_used_mib and stats.gpu.vram_total_mib %}
         {{ "%.1f"|format(stats.gpu.vram_used_mib / 1024) }} / {{ "%.1f"|format(stats.gpu.vram_total_mib / 1024) }} GiB
       {% else %}
-        --
+        GPU memory unavailable
       {% endif %}
     </div>
   </div>
@@ -67,7 +101,7 @@
   <div class="card">
     <div class="metric-label">GPU temperature</div>
     <div class="metric-value">
-      {% if stats.gpu.available %}
+      {% if stats.gpu.available and stats.gpu.temperature_c is not none %}
         {{ stats.gpu.temperature_c }}°C
       {% else %}
         n/a
@@ -91,20 +125,44 @@
 
 <section class="workstation-grid">
   <div class="card">
+    <h2>System snapshot</h2>
+    <table class="compact-table">
+      <tbody>
+        <tr>
+          <th>Host</th>
+          <td>{{ stats.host.hostname }}</td>
+        </tr>
+        <tr>
+          <th>Platform</th>
+          <td>{{ stats.host.platform }}</td>
+        </tr>
+        <tr>
+          <th>Python</th>
+          <td>{{ stats.host.python }}</td>
+        </tr>
+        <tr>
+          <th>Sampled</th>
+          <td>{{ stats.sampled_at }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>LLM relevance</h2>
     <table class="compact-table">
       <tbody>
         <tr>
           <th>Useful for</th>
-          <td>Watching model load, VRAM pressure, thermals, and power during local inference.</td>
+          <td>Watching model load, memory pressure, disk headroom, GPU memory, thermals, and power during local inference.</td>
         </tr>
         <tr>
           <th>Current policy</th>
           <td>Read-only monitoring. No GPU tuning controls from Monolith yet.</td>
         </tr>
         <tr>
-          <th>Next useful addition</th>
-          <td>Show active model/run status and last-run peak VRAM on this page.</td>
+          <th>Fallback behavior</th>
+          <td>Unavailable metrics should show n/a or an explanatory note instead of breaking the page.</td>
         </tr>
       </tbody>
     </table>
@@ -115,16 +173,16 @@
     <table class="compact-table">
       <tbody>
         <tr>
+          <th>NVIDIA</th>
+          <td>Detected through nvidia-smi when available. Missing tools are treated as unavailable, not fatal.</td>
+        </tr>
+        <tr>
           <th>LACT</th>
           <td>Future reference/integration target for Linux GPU monitoring and configuration.</td>
         </tr>
         <tr>
           <th>Safety stance</th>
           <td>Detection/status/linking first. No fan, power, clock, or tuning controls until explicitly reviewed.</td>
-        </tr>
-        <tr>
-          <th>Roadmap</th>
-          <td>Candidate for a later Workstation polish patch, not required for v0.02.2.</td>
         </tr>
       </tbody>
     </table>
