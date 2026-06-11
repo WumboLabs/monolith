@@ -14,7 +14,7 @@ It is currently useful as a personal/local AI workbench, but it is not yet packa
 
 Current version:
 
-    alpha v0.11.4
+    alpha v0.11.5
 
 ## What Monolith is for
 
@@ -98,8 +98,8 @@ Examples:
 - `alpha v0.10.0` — initial public preflight baseline
 - `alpha v0.11.4` — public-alpha readiness, generated chat profiles, model detail pages, local prompt scaffold, and install docs
 - `alpha v0.11.3` — controlled downloader execution and UI
-- `alpha v0.11.5` — WumboCore / Monochrome Lime UI theme pass
-- `alpha v0.11.5.1` — small patch after that milestone
+- `alpha v0.11.6` — next feature milestone
+- `alpha v0.11.6.1` — small patch after that milestone
 
 Current version is tracked in:
 

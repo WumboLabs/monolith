@@ -1,3 +1,12 @@
+## alpha v0.11.5 - 2026-06-11
+
+- Applied the WumboCore / Monochrome Lime palette to the app theme.
+- Reduced high-intensity lime accent opacity for a more restrained workbench look.
+- Added a WumboCore refinement override for more neutral charcoal panels and less green wash.
+- Removed remaining old Matrix/cyan-green theme wording and color remnants from active CSS.
+- Added non-destructive Agent Lab session archiving.
+- Hid archived Agent Lab sessions from the default session list.
+
 ## alpha v0.11.4 - 2026-06-11
 
 - Added generated SQLite chat profiles for local GGUF models.
