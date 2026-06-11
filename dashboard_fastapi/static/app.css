@@ -1914,7 +1914,7 @@ button:disabled {
   /* Borders / separators */
   --mono-border-dim: rgba(42, 47, 56, 0.75);
   --mono-border: rgba(42, 47, 56, 1);
-  --mono-border-strong: rgba(198, 255, 51, 0.42);
+  --mono-border-strong: rgba(198, 255, 51, 0.26);
 
   /* Text */
   --mono-text: #F2F2F2;
@@ -2042,7 +2042,7 @@ li {
   color: var(--mono-text);
   background:
     linear-gradient(90deg, rgba(198, 255, 51, 0.16), rgba(154, 163, 172, 0.07));
-  border-color: rgba(198, 255, 51, 0.30);
+  border-color: rgba(198, 255, 51, 0.22);
 }
 
 /* Top telemetry bar */
@@ -2127,7 +2127,7 @@ button:disabled,
 
 .status-good,
 .status-pill.status-good {
-  border-color: rgba(198, 255, 51, 0.48);
+  border-color: rgba(198, 255, 51, 0.22);
   color: var(--mono-cyan);
 }
 
@@ -2140,7 +2140,7 @@ button:disabled,
 /* Stakes / risk pills */
 
 .eval-risk-low {
-  border-color: rgba(198, 255, 51, 0.45);
+  border-color: rgba(198, 255, 51, 0.20);
   color: var(--mono-cyan);
 }
 
@@ -2194,7 +2194,7 @@ a:hover {
 }
 
 .context-scaling-check:hover {
-  border-color: rgba(198, 255, 51, 0.40);
+  border-color: rgba(198, 255, 51, 0.25);
 }
 
 .eval-cleanup-button:not(:disabled) {
@@ -2521,14 +2521,14 @@ code,
 
 .testbench-tab:hover {
   color: var(--mono-text);
-  border-color: rgba(198, 255, 51, 0.36);
+  border-color: rgba(198, 255, 51, 0.24);
   background: rgba(10, 26, 23, 0.94);
   box-shadow: 0 0 14px rgba(198, 255, 51, 0.10);
 }
 
 .testbench-tab.active {
   color: #F2F2F2;
-  border-color: rgba(198, 255, 51, 0.42);
+  border-color: rgba(198, 255, 51, 0.26);
   background:
     linear-gradient(90deg, rgba(198, 255, 51, 0.18), rgba(198, 255, 51, 0.08));
   box-shadow:
@@ -2618,7 +2618,7 @@ code,
   color: var(--mono-text);
   background:
     linear-gradient(180deg, rgba(8, 24, 21, 0.98), rgba(5, 17, 15, 0.98));
-  box-shadow: inset 0 -2px 0 rgba(198, 255, 51, 0.42);
+  box-shadow: inset 0 -2px 0 rgba(198, 255, 51, 0.26);
 }
 
 .testbench-tab.active {
@@ -2626,7 +2626,7 @@ code,
   background:
     linear-gradient(180deg, rgba(18, 54, 42, 0.78), rgba(7, 28, 22, 0.98));
   box-shadow:
-    inset 0 -3px 0 rgba(198, 255, 51, 0.72),
+    inset 0 -3px 0 rgba(198, 255, 51, 0.24),
     inset 0 0 18px rgba(198, 255, 51, 0.07);
 }
 
@@ -2655,7 +2655,7 @@ code,
 }
 
 .testbench-tab.active .tab-kicker {
-  border-color: rgba(198, 255, 51, 0.38);
+  border-color: rgba(198, 255, 51, 0.24);
   color: var(--mono-green);
   background: rgba(0, 0, 0, 0.36);
 }
@@ -2699,7 +2699,7 @@ code,
 
   --mono-border-dim: rgba(42, 47, 56, 0.75);
   --mono-border: rgba(42, 47, 56, 1);
-  --mono-border-strong: rgba(198, 255, 51, 0.42);
+  --mono-border-strong: rgba(198, 255, 51, 0.26);
 
   --mono-text: #F2F2F2;
   --mono-text-soft: #C9CED6;
@@ -2896,7 +2896,7 @@ td {
 .card:hover,
 .eval-category-card:hover,
 .context-scaling-check:hover {
-  border-color: rgba(198, 255, 51, 0.30) !important;
+  border-color: rgba(198, 255, 51, 0.22) !important;
   box-shadow:
     inset 0 0 0 1px rgba(198, 255, 51, 0.04),
     0 0 18px rgba(198, 255, 51, 0.07),
@@ -2995,7 +2995,7 @@ tbody tr:nth-child(even),
 .status-good,
 .status-pill.status-good,
 .eval-risk-low {
-  border-color: rgba(198, 255, 51, 0.36) !important;
+  border-color: rgba(198, 255, 51, 0.24) !important;
   color: var(--mono-green) !important;
 }
 
@@ -3041,7 +3041,7 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: rgba(198, 255, 51, 0.46) !important;
+  border-color: rgba(198, 255, 51, 0.20) !important;
   box-shadow: 0 0 0 2px rgba(198, 255, 51, 0.08) !important;
 }
 
@@ -3055,7 +3055,7 @@ button[type="submit"] {
 button:hover,
 .send-button:hover,
 .chat-action-button:hover {
-  border-color: rgba(198, 255, 51, 0.42) !important;
+  border-color: rgba(198, 255, 51, 0.26) !important;
   background:
     linear-gradient(180deg, rgba(12, 34, 27, 0.96), rgba(5, 17, 14, 0.96)) !important;
   box-shadow: var(--mono-glow-green) !important;
@@ -3122,14 +3122,14 @@ canvas {
 /* Selection */
 
 ::selection {
-  background: rgba(198, 255, 51, 0.28);
+  background: rgba(198, 255, 51, 0.20);
   color: #F2F2F2;
 }
 
 /* Scrollbars, supported browsers */
 
 * {
-  scrollbar-color: rgba(198, 255, 51, 0.32) rgba(13, 15, 20, 0.92);
+  scrollbar-color: rgba(198, 255, 51, 0.24) rgba(13, 15, 20, 0.92);
 }
 
 /* Keep motion restrained */
@@ -3155,7 +3155,7 @@ button.agent-action-button {
     linear-gradient(180deg, rgba(8, 28, 21, 0.98), rgba(3, 13, 10, 0.98)) !important;
   color: #F2F2F2 !important;
   box-shadow:
-    inset 0 -2px 0 rgba(198, 255, 51, 0.42),
+    inset 0 -2px 0 rgba(198, 255, 51, 0.26),
     inset 0 0 18px rgba(198, 255, 51, 0.045),
     0 0 18px rgba(198, 255, 51, 0.07) !important;
   text-decoration: none !important;
@@ -3164,11 +3164,11 @@ button.agent-action-button {
 .agent-action-button:hover,
 a.agent-action-button:hover,
 button.agent-action-button:hover {
-  border-color: rgba(198, 255, 51, 0.52) !important;
+  border-color: rgba(198, 255, 51, 0.22) !important;
   background:
     linear-gradient(180deg, rgba(18, 54, 42, 0.92), rgba(6, 24, 18, 0.98)) !important;
   box-shadow:
-    inset 0 -3px 0 rgba(198, 255, 51, 0.72),
+    inset 0 -3px 0 rgba(198, 255, 51, 0.24),
     inset 0 0 20px rgba(198, 255, 51, 0.08),
     0 0 22px rgba(198, 255, 51, 0.12) !important;
 }
@@ -3176,7 +3176,7 @@ button.agent-action-button:hover {
 .agent-action-button.secondary {
   border-color: rgba(198, 255, 51, 0.26) !important;
   box-shadow:
-    inset 0 -2px 0 rgba(198, 255, 51, 0.38),
+    inset 0 -2px 0 rgba(198, 255, 51, 0.24),
     inset 0 0 18px rgba(198, 255, 51, 0.035) !important;
 }
 
@@ -3207,6 +3207,6 @@ a[href="/agents/new"] {
   letter-spacing: 0.045em;
   text-decoration: none !important;
   box-shadow:
-    inset 0 -2px 0 rgba(198, 255, 51, 0.42),
+    inset 0 -2px 0 rgba(198, 255, 51, 0.26),
     0 0 18px rgba(198, 255, 51, 0.07) !important;
 }
