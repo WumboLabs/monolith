@@ -5,7 +5,7 @@ Read the following context and answer the question at the end.
 Context:
 
 The workstation is named Atlas.
-The server is named wumboserver.
+The server is named labserver.
 The laptop is named Nova.
 
 Several unrelated notes follow.

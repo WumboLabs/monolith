@@ -12,7 +12,7 @@ scoring_focus:
 
 # ZFS Snapshot / Rollback Procedure
 
-A user has a ZFS pool named `tank` with datasets under `/data`.
+A user has a ZFS pool named `tank` with datasets under `/tank/data`.
 
 Task:
 Explain how to safely create a snapshot before a risky application change, verify it exists, and roll back if the change fails.

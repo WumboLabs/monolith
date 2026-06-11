@@ -12,16 +12,16 @@ scoring_focus:
 
 # ZFS Dataset Layout Review
 
-A homelab server has a ZFS pool named `tank` and a main mount at `/data`.
+A homelab server has a ZFS pool named `tank` and a main mount at `/tank/data`.
 
 Current directories include:
 
-    /data/media
-    /data/downloads
-    /data/torrents
-    /data/backups
-    /data/appdata
-    /data/scripts
+    /tank/data/media
+    /tank/data/downloads
+    /tank/data/torrents
+    /tank/data/backups
+    /tank/data/appdata
+    /tank/data/scripts
 
 Task:
 Recommend which directories should likely become separate datasets and why.

@@ -10,7 +10,7 @@ Monolith is a local-first dashboard and evaluation workbench for practical local
 
 Monolith is alpha software.
 
-It is currently useful as a personal/local AI workbench, but it is not yet packaged as a general-purpose application. Expect workstation-specific assumptions, rough edges, and active iteration.
+It is currently useful as a local AI workbench for technical users, but it is not yet packaged as a general-purpose application. Expect rough edges, manual setup, and active iteration.
 
 Current version:
 
@@ -83,7 +83,7 @@ This project follows a conservative local-first workflow:
 
 - Prefer small, reversible changes.
 - Keep generated data out of Git.
-- Keep real model paths and private machine details out of public files.
+- Keep real model paths, private machine details, and local benchmark data out of public files.
 - Run scans before public-facing commits.
 - Do not add automatic command execution without review boundaries.
 - Treat agent workflows as proposal/review-first until proven safe.
