@@ -26,20 +26,29 @@ This roadmap tracks near-term public-alpha work. It is intentionally conservativ
 - Added root disk usage to Workstation and the top system ticker.
 - Made NVIDIA monitoring optional through `nvidia-smi` detection.
 
-## Next milestone
-
 ### alpha v0.11.7 — public-alpha generic install audit
 
-Goal: make the repository more obviously usable by someone other than the original author on a different Linux machine.
+- Generalized public-alpha docs and bundled prompt examples.
+- Removed remaining original-author machine/path assumptions from active public files.
+- Generalized default model, llama.cpp, inventory, and Quant Lab paths.
+- Added `docs/PUBLIC_ALPHA.md` with current public-alpha status and limitations.
+- Updated troubleshooting database migration instructions.
+- Corrected recent release dates to local machine date.
+
+## Next milestone
+
+### alpha v0.11.8 — first-run and setup hardening
+
+Goal: reduce first-run friction for technical users installing Monolith on a fresh Linux machine.
 
 Planned work:
 
-- Remove remaining machine-shaped examples from bundled prompts.
-- Clean stale documentation and roadmap wording.
-- Align troubleshooting and install instructions.
-- Review default config paths for generic public use.
-- Run a clean-clone install test.
-- Decide whether to keep source-available/no-license posture or add an explicit open-source license.
+- Run and document a clean-clone install test.
+- Improve missing config, missing database, and missing llama.cpp guidance.
+- Add clearer first-run empty states.
+- Review startup failure messages.
+- Tighten install/config docs based on fresh-user testing.
+- Consider lightweight GitHub issue templates if Issues are enabled.
 
 ## Later candidates
 

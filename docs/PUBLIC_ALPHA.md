@@ -27,7 +27,12 @@ The supported alpha path is:
     pip install -r requirements.txt
     cp configs/models.example.yaml configs/models.yaml
     python scripts/init_db.py
-    python scripts/migrate_*.py
+    python scripts/migrate_model_registry.py
+    python scripts/migrate_model_downloader.py
+    python scripts/migrate_generated_chat_profiles.py
+    python scripts/migrate_context_scaling.py
+    python scripts/migrate_hermes_eval.py
+    python scripts/migrate_agent_lab.py
     uvicorn dashboard_fastapi.app:app --host 127.0.0.1 --port 8000
 
 See `docs/INSTALL.md` for the full sequence.

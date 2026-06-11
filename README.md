@@ -93,11 +93,11 @@ This project follows a conservative local-first workflow:
 
 Monolith uses alpha milestone versioning.
 
-Examples:
+Recent examples:
 
-- `alpha v0.10.0` — initial public preflight baseline
-- `alpha v0.11.4` — public-alpha readiness, generated chat profiles, model detail pages, local prompt scaffold, and install docs
-- `alpha v0.11.3` — controlled downloader execution and UI
+- `alpha v0.11.5` — WumboCore / Monochrome Lime theme pass and Agent Lab archiving
+- `alpha v0.11.6` — portable Workstation monitoring and ticker hardening
+- `alpha v0.11.7` — public-alpha generic install audit and documentation cleanup
 - `alpha v0.11.8` — next feature milestone
 - `alpha v0.11.8.1` — small patch after that milestone
 
