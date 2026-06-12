@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Setup Status</h1>
+
+<p class="muted">
+  Read-only first-run diagnostics for local configuration, database state, model paths, and runtime dependencies.
+</p>
+
+<section class="cards dashboard-summary-cards">
+  <div class="card">
+    <div class="metric-label">Overall</div>
+    <div class="metric-value">{{ setup.overall_status|upper }}</div>
+    <div class="micro-muted">{{ setup.summary }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Checks</div>
+    <div class="metric-value">{{ setup.counts.total }}</div>
+    <div class="micro-muted">{{ setup.counts.ok }} ok · {{ setup.counts.warn }} warn · {{ setup.counts.error }} error</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Database</div>
+    <div class="metric-value">{{ setup.database.status|upper }}</div>
+    <div class="micro-muted">{{ setup.database.path }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Models config</div>
+    <div class="metric-value">{{ setup.models_config.status|upper }}</div>
+    <div class="micro-muted">{{ setup.models_config.path }}</div>
+  </div>
+</section>
+
+<section class="dashboard-panel">
+  <div class="section-heading-row">
+    <div>
+      <h2>First-run checklist</h2>
+      <p class="muted">Items marked error or warn should be fixed before expecting all workflows to run.</p>
+    </div>
+
+    <a class="button-link" href="/api/setup/status">Open JSON</a>
+  </div>
+
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Check</th>
+        <th>Details</th>
+        <th>Next action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for check in setup.checks %}
+      <tr>
+        <td>
+          {% if check.status == "ok" %}
+            <span class="status-pill status-good">OK</span>
+          {% elif check.status == "error" %}
+            <span class="status-pill status-bad">ERROR</span>
+          {% else %}
+            <span class="status-pill">WARN</span>
+          {% endif %}
+        </td>
+        <td><strong>{{ check.label }}</strong></td>
+        <td>{{ check.detail }}</td>
+        <td class="micro-muted">{{ check.next_action }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="dashboard-grid">
+  <section class="dashboard-panel">
+    <h2>Paths</h2>
+    <table class="compact-table">
+      <tbody>
+        <tr><th>Project root</th><td><code>{{ setup.paths.root }}</code></td></tr>
+        <tr><th>Database</th><td><code>{{ setup.paths.database }}</code></td></tr>
+        <tr><th>Models config</th><td><code>{{ setup.paths.models_config }}</code></td></tr>
+        <tr><th>Quant Lab root</th><td><code>{{ setup.paths.quant_lab_root }}</code></td></tr>
+        <tr><th>Download root</th><td><code>{{ setup.paths.download_root }}</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="dashboard-panel">
+    <h2>Model inventory roots</h2>
+
+    {% if setup.inventory.roots %}
+      <table class="compact-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Path</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for root in setup.inventory.roots %}
+          <tr>
+            <td>
+              {% if root.exists %}
+                <span class="status-pill status-good">OK</span>
+              {% else %}
+                <span class="status-pill">MISSING</span>
+              {% endif %}
+            </td>
+            <td><code>{{ root.path }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No model inventory roots configured.</p>
+    {% endif %}
+  </section>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Recommended setup commands</h2>
+
+  <pre><code>cp configs/models.example.yaml configs/models.yaml
+python scripts/init_db.py
+python scripts/migrate_model_registry.py
+python scripts/migrate_model_downloader.py
+python scripts/migrate_generated_chat_profiles.py
+python scripts/migrate_context_scaling.py
+python scripts/migrate_hermes_eval.py
+python scripts/migrate_agent_lab.py</code></pre>
+
+  <p class="muted">
+    These commands are shown for guidance only. This page does not modify files, run migrations, download models, or start model processes.
+  </p>
+</section>
+
+{% endblock %}

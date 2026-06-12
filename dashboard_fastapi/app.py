@@ -1957,6 +1957,297 @@ def create_agent_session(
         conn.commit()
         return int(cursor.lastrowid)
 
+
+def setup_status_payload() -> dict[str, Any]:
+    checks: list[dict[str, str]] = []
+
+    def add_check(status: str, label: str, detail: str, next_action: str) -> None:
+        checks.append(
+            {
+                "status": status,
+                "label": label,
+                "detail": detail,
+                "next_action": next_action,
+            }
+        )
+
+    db_exists = DB_PATH.exists()
+    config_exists = MODELS_CONFIG.exists()
+    example_config = ROOT / "configs" / "models.example.yaml"
+    example_config_exists = example_config.exists()
+
+    required_tables = {
+        "runs": "Run scripts/init_db.py.",
+        "local_model_files": "Run scripts/migrate_model_registry.py.",
+        "model_download_jobs": "Run scripts/migrate_model_downloader.py.",
+        "generated_chat_profiles": "Run scripts/migrate_generated_chat_profiles.py.",
+        "context_scaling_runs": "Run scripts/migrate_context_scaling.py.",
+        "hermes_eval_runs": "Run scripts/migrate_hermes_eval.py.",
+        "agent_sessions": "Run scripts/migrate_agent_lab.py.",
+    }
+
+    table_status: dict[str, bool] = {}
+
+    if db_exists:
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                rows = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+                existing_tables = {row[0] for row in rows}
+
+            table_status = {
+                table_name: table_name in existing_tables
+                for table_name in required_tables
+            }
+        except Exception as exc:
+            add_check(
+                "error",
+                "Database readable",
+                f"Database exists but could not be inspected: {exc}",
+                "Check database permissions or recreate the database from the documented setup commands.",
+            )
+    else:
+        table_status = {table_name: False for table_name in required_tables}
+
+    add_check(
+        "ok" if db_exists else "error",
+        "Database file",
+        f"{DB_PATH}",
+        "Run python scripts/init_db.py." if not db_exists else "No action needed.",
+    )
+
+    for table_name, next_action in required_tables.items():
+        exists = table_status.get(table_name, False)
+        add_check(
+            "ok" if exists else "error",
+            f"Database table: {table_name}",
+            "Present." if exists else "Missing.",
+            "No action needed." if exists else next_action,
+        )
+
+    add_check(
+        "ok" if config_exists else "error",
+        "Models config",
+        f"{MODELS_CONFIG}",
+        "Copy configs/models.example.yaml to configs/models.yaml and edit local paths."
+        if not config_exists
+        else "No action needed.",
+    )
+
+    add_check(
+        "ok" if example_config_exists else "error",
+        "Example models config",
+        f"{example_config}",
+        "Restore configs/models.example.yaml from the repository."
+        if not example_config_exists
+        else "No action needed.",
+    )
+
+    inventory_roots = []
+    existing_inventory_roots = 0
+
+    try:
+        for root in approved_model_inventory_roots():
+            root_exists = root.exists()
+            existing_inventory_roots += 1 if root_exists else 0
+            inventory_roots.append(
+                {
+                    "path": str(root),
+                    "exists": root_exists,
+                }
+            )
+    except Exception as exc:
+        add_check(
+            "warn",
+            "Model inventory roots",
+            f"Could not inspect inventory roots: {exc}",
+            "Check MONOLITH_MODEL_INVENTORY_ROOTS.",
+        )
+
+    if inventory_roots:
+        add_check(
+            "ok" if existing_inventory_roots else "warn",
+            "Model inventory root paths",
+            f"{existing_inventory_roots} of {len(inventory_roots)} configured roots exist.",
+            "Create the model directory or set MONOLITH_MODEL_INVENTORY_ROOTS."
+            if not existing_inventory_roots
+            else "No action needed.",
+        )
+    else:
+        add_check(
+            "warn",
+            "Model inventory root paths",
+            "No inventory roots configured.",
+            "Set MONOLITH_MODEL_INVENTORY_ROOTS or use the default ~/Monolith/models path.",
+        )
+
+    gguf_count = 0
+    for root_info in inventory_roots:
+        root = Path(root_info["path"])
+        if root.exists():
+            try:
+                gguf_count += sum(1 for _ in root.rglob("*.gguf"))
+            except Exception:
+                pass
+
+    add_check(
+        "ok" if gguf_count else "warn",
+        "Local GGUF files",
+        f"{gguf_count} GGUF files found in configured inventory roots.",
+        "Place GGUF files under an inventory root or configure a correct model directory."
+        if not gguf_count
+        else "No action needed.",
+    )
+
+    generated_profile_count = 0
+    if db_exists and table_status.get("generated_chat_profiles", False):
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                generated_profile_count = conn.execute(
+                    "SELECT COUNT(*) FROM generated_chat_profiles"
+                ).fetchone()[0]
+        except Exception:
+            generated_profile_count = 0
+
+    yaml_profile_count = 0
+    try:
+        yaml_profile_count = len(load_model_profiles())
+    except Exception:
+        yaml_profile_count = 0
+
+    total_profile_count = yaml_profile_count + generated_profile_count
+
+    add_check(
+        "ok" if total_profile_count else "warn",
+        "Chat profiles",
+        f"{yaml_profile_count} YAML profiles and {generated_profile_count} generated profiles available.",
+        "Configure a YAML profile or create a generated chat profile from a discovered local model."
+        if not total_profile_count
+        else "No action needed.",
+    )
+
+    llama_completion_path = Path(LLAMA_COMPLETION).expanduser()
+    llama_tokenize_path = Path(LLAMA_TOKENIZE).expanduser()
+    llama_completion_exists = llama_completion_path.exists()
+    llama_tokenize_exists = llama_tokenize_path.exists()
+
+    add_check(
+        "ok" if llama_completion_exists else "warn",
+        "llama.cpp completion binary",
+        f"{llama_completion_path}",
+        "Set MONOLITH_LLAMA_COMPLETION or build/install llama.cpp."
+        if not llama_completion_exists
+        else "No action needed.",
+    )
+
+    add_check(
+        "ok" if llama_tokenize_exists else "warn",
+        "llama.cpp tokenize binary",
+        f"{llama_tokenize_path}",
+        "Set MONOLITH_LLAMA_TOKENIZE or build/install llama.cpp."
+        if not llama_tokenize_exists
+        else "No action needed.",
+    )
+
+    quant_lab_exists = QUANT_LAB_ROOT.exists()
+    add_check(
+        "ok" if quant_lab_exists else "warn",
+        "Quant Lab root",
+        f"{QUANT_LAB_ROOT}",
+        "Set MONOLITH_QUANT_LAB_ROOT or create the expected Quant Lab directory if using eval imports."
+        if not quant_lab_exists
+        else "No action needed.",
+    )
+
+    download_root = Path(os.environ.get("MONOLITH_MODEL_DOWNLOAD_ROOT", str(Path.home() / "Monolith" / "models" / "huggingface"))).expanduser()
+    download_root_exists = download_root.exists()
+    add_check(
+        "ok" if download_root_exists else "warn",
+        "Model download root",
+        f"{download_root}",
+        "Create this directory before starting downloads, or set MONOLITH_MODEL_DOWNLOAD_ROOT."
+        if not download_root_exists
+        else "No action needed.",
+    )
+
+    counts = {
+        "total": len(checks),
+        "ok": sum(1 for check in checks if check["status"] == "ok"),
+        "warn": sum(1 for check in checks if check["status"] == "warn"),
+        "error": sum(1 for check in checks if check["status"] == "error"),
+    }
+
+    if counts["error"]:
+        overall_status = "error"
+        summary = "Setup is incomplete. Fix error items before normal use."
+    elif counts["warn"]:
+        overall_status = "warn"
+        summary = "Setup is usable but has warnings."
+    else:
+        overall_status = "ok"
+        summary = "Setup checks passed."
+
+    return {
+        "overall_status": overall_status,
+        "summary": summary,
+        "counts": counts,
+        "checks": checks,
+        "paths": {
+            "root": str(ROOT),
+            "database": str(DB_PATH),
+            "models_config": str(MODELS_CONFIG),
+            "quant_lab_root": str(QUANT_LAB_ROOT),
+            "download_root": str(download_root),
+        },
+        "database": {
+            "status": "ok" if db_exists else "error",
+            "path": str(DB_PATH),
+            "exists": db_exists,
+            "tables": table_status,
+        },
+        "models_config": {
+            "status": "ok" if config_exists else "error",
+            "path": str(MODELS_CONFIG),
+            "exists": config_exists,
+            "example_path": str(example_config),
+            "example_exists": example_config_exists,
+        },
+        "inventory": {
+            "roots": inventory_roots,
+            "gguf_count": gguf_count,
+        },
+        "profiles": {
+            "yaml_count": yaml_profile_count,
+            "generated_count": generated_profile_count,
+            "total_count": total_profile_count,
+        },
+        "llama_cpp": {
+            "completion": str(llama_completion_path),
+            "completion_exists": llama_completion_exists,
+            "tokenize": str(llama_tokenize_path),
+            "tokenize_exists": llama_tokenize_exists,
+        },
+    }
+
+
+@app.get("/api/setup/status")
+def api_setup_status():
+    return setup_status_payload()
+
+
+@app.get("/setup", response_class=HTMLResponse)
+def setup_status_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "setup.html",
+        {
+            "title": "Setup Status",
+            "setup": setup_status_payload(),
+        },
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     summary = db_one(
