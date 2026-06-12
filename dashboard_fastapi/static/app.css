@@ -3930,3 +3930,176 @@ tbody tr:hover td {
     width: 100%;
   }
 }
+
+
+/* -------------------------------------------------------------------------
+   Monolith alpha v0.11.9 — Workbench Tabs + Typography Refinement
+   -------------------------------------------------------------------------
+   Additive refinement after visual review.
+   - Makes exact-path tabs/links visibly selected.
+   - Tunes typography toward terminal/workbench without sacrificing readability.
+------------------------------------------------------------------------- */
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family:
+    "JetBrains Mono",
+    "Cascadia Code",
+    "IBM Plex Mono",
+    "Fira Code",
+    "SFMono-Regular",
+    "Consolas",
+    "Liberation Mono",
+    "Menlo",
+    monospace !important;
+  font-feature-settings: "liga" 0, "calt" 0, "tnum" 1, "zero" 1;
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
+}
+
+body {
+  font-size: 14.5px !important;
+  line-height: 1.52 !important;
+}
+
+h1,
+h2,
+h3,
+.sidebar-title,
+.metric-value {
+  font-family:
+    "JetBrains Mono",
+    "Cascadia Code",
+    "IBM Plex Mono",
+    "Fira Code",
+    "SFMono-Regular",
+    "Consolas",
+    "Liberation Mono",
+    "Menlo",
+    monospace !important;
+}
+
+h1 {
+  font-weight: 760 !important;
+  letter-spacing: 0.055em !important;
+}
+
+h2 {
+  font-weight: 720 !important;
+  letter-spacing: 0.052em !important;
+}
+
+h3 {
+  font-weight: 690 !important;
+  letter-spacing: 0.035em !important;
+}
+
+p,
+li,
+td,
+th,
+label,
+.muted,
+.micro-muted {
+  line-height: 1.48;
+}
+
+.compact-table,
+.eval-table,
+.runs-table,
+.models-table,
+.subtle-table {
+  font-size: 0.84rem !important;
+}
+
+.compact-table td,
+.eval-table td,
+.runs-table td,
+.models-table td,
+.subtle-table td {
+  vertical-align: top;
+}
+
+.sidebar-nav a {
+  font-weight: 620 !important;
+}
+
+.button,
+button,
+.button-link,
+.small-button,
+.send-button,
+.chat-action-button,
+.secondary-button {
+  font-weight: 680 !important;
+  letter-spacing: 0.045em;
+}
+
+/* Exact-path active workbench links. This fixes tab/button sets where the
+   current view was not visually locked. */
+.container a.workbench-active-link[href] {
+  background:
+    linear-gradient(90deg, rgb(198 255 51 / 0.13), rgb(198 255 51 / 0.045)) !important;
+  border-color: rgb(198 255 51 / 0.42) !important;
+  color: var(--workbench-lime) !important;
+  box-shadow:
+    inset 3px 0 0 var(--workbench-lime),
+    0 0 0 1px rgb(198 255 51 / 0.07) !important;
+}
+
+.container a.workbench-active-link[href] .status-pill {
+  background: rgb(198 255 51 / 0.16) !important;
+  border-color: rgb(198 255 51 / 0.48) !important;
+  color: var(--workbench-lime) !important;
+}
+
+/* Keep ordinary body links from becoming large blocks unless they already
+   behave like tabs, cards, or buttons. */
+.container p a.workbench-active-link,
+.container li a.workbench-active-link,
+.container td a.workbench-active-link {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--workbench-lime) !important;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* Slightly stronger keyboard and terminal affordances. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 1px solid rgb(198 255 51 / 0.72) !important;
+  outline-offset: 2px !important;
+}
+
+pre,
+code,
+.file-path,
+.path-cell {
+  font-size: 0.86em;
+  line-height: 1.46;
+}
+
+.metric-label,
+.status-pill,
+th {
+  font-weight: 680 !important;
+}
+
+@media (max-width: 900px) {
+  body {
+    font-size: 14px !important;
+  }
+
+  h1 {
+    letter-spacing: 0.035em !important;
+  }
+}

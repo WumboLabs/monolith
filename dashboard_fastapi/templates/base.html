@@ -166,6 +166,40 @@ async function updateWorkstationStats() {
   }
 }
 
+
+function normalizeWorkbenchPath(path) {
+  if (!path || path === "/") {
+    return "/";
+  }
+
+  return path.replace(/\/+$/, "");
+}
+
+function setupWorkbenchActiveLinks() {
+  const currentPath = normalizeWorkbenchPath(window.location.pathname);
+
+  document.querySelectorAll("a[href]").forEach((link) => {
+    const rawHref = link.getAttribute("href");
+
+    if (!rawHref || rawHref.startsWith("#") || rawHref.startsWith("mailto:")) {
+      return;
+    }
+
+    let linkPath;
+
+    try {
+      linkPath = normalizeWorkbenchPath(new URL(rawHref, window.location.origin).pathname);
+    } catch (_error) {
+      return;
+    }
+
+    if (linkPath === currentPath) {
+      link.classList.add("workbench-active-link");
+      link.setAttribute("aria-current", "page");
+    }
+  });
+}
+
 function setupSidebar() {
   const shell = document.getElementById("appShell");
   const toggle = document.getElementById("sidebarToggle");
@@ -196,6 +230,7 @@ function setupSidebar() {
 }
 
 setupSidebar();
+setupWorkbenchActiveLinks();
 updateWorkstationStats();
 setInterval(updateWorkstationStats, 2000);
 </script>
