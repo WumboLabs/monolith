@@ -6,7 +6,7 @@ It is not yet packaged as a general-purpose desktop app or one-command installer
 
 ## Current version
 
-    alpha v0.11.7
+    alpha v0.11.8
 
 ## Intended users
 

@@ -35,19 +35,23 @@ This roadmap tracks near-term public-alpha work. It is intentionally conservativ
 - Updated troubleshooting database migration instructions.
 - Corrected recent release dates to local machine date.
 
-## Next milestone
+## Current milestone
 
 ### alpha v0.11.8 — first-run and setup hardening
 
 Goal: reduce first-run friction for technical users installing Monolith on a fresh Linux machine.
 
-Planned work:
+Completed in this milestone:
+
+- Added read-only setup diagnostics at `/setup`.
+- Added raw setup diagnostics JSON at `/api/setup/status`.
+- Added `scripts/setup_check.py` for terminal-side setup validation.
+- Improved first-run empty states on `/models`, `/chat`, and `/eval`.
+- Documented setup diagnostics in install, troubleshooting, and public-alpha docs.
+
+Remaining follow-up candidates:
 
 - Run and document a clean-clone install test.
-- Improve missing config, missing database, and missing llama.cpp guidance.
-- Add clearer first-run empty states.
-- Review startup failure messages.
-- Tighten install/config docs based on fresh-user testing.
 - Consider lightweight GitHub issue templates if Issues are enabled.
 
 ## Later candidates

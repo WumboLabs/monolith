@@ -1,3 +1,13 @@
+# Monolith Changelog
+
+## alpha v0.11.8 - 2026-06-11
+
+- Added read-only first-run setup diagnostics at `/setup`.
+- Added raw setup diagnostics JSON at `/api/setup/status`.
+- Added `scripts/setup_check.py` for terminal-side setup validation.
+- Improved first-run empty states on `/models`, `/chat`, and `/eval`.
+- Documented setup diagnostics in install, troubleshooting, and public-alpha docs.
+
 ## alpha v0.11.7 - 2026-06-10
 
 - Generalized public-alpha docs and bundled prompt examples.
@@ -39,7 +49,6 @@
 - Generalized bundled chat prompt text away from machine-specific assumptions.
 - Added roadmap note for a future WumboCore / Monochrome Lime theme pass.
 
-# Monolith Changelog
 
 ## alpha v0.11.3 - 2026-06-10
 

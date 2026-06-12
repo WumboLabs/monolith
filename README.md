@@ -14,7 +14,7 @@ It is currently useful as a local AI workbench for technical users, but it is no
 
 Current version:
 
-    alpha v0.11.7
+    alpha v0.11.8
 
 ## What Monolith is for
 
@@ -98,14 +98,20 @@ Recent examples:
 - `alpha v0.11.5` — WumboCore / Monochrome Lime theme pass and Agent Lab archiving
 - `alpha v0.11.6` — portable Workstation monitoring and ticker hardening
 - `alpha v0.11.7` — public-alpha generic install audit and documentation cleanup
-- `alpha v0.11.8` — next feature milestone
-- `alpha v0.11.8.1` — small patch after that milestone
+- `alpha v0.11.8` — first-run setup diagnostics and setup hardening
+- `alpha v0.11.8.1` — next small patch milestone
 
 Current version is tracked in:
 
 - `VERSION`
 - `dashboard_fastapi/app.py` as `APP_VERSION`
 - `CHANGELOG.md`
+
+Before committing release metadata changes, run:
+
+    python scripts/check_release_metadata.py
+
+This checks that version references match, the changelog title stays at the top, and the latest changelog entry matches `VERSION`.
 
 ## Security
 
