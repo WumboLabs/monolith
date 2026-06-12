@@ -26,7 +26,21 @@ Defaults:
     MONOLITH_MODEL_DOWNLOAD_ROOT=~/Monolith/models/huggingface
     MONOLITH_QUANT_LAB_ROOT=./quant-lab
 
-`scripts/run_webui.py` loads `.env` automatically before starting the WebUI. If you start uvicorn directly or use a service wrapper, export the variables in that shell or service wrapper.
+### WebUI host and port
+
+`scripts/run_webui.py` loads `.env` automatically before starting the local WebUI.
+
+Supported WebUI variables:
+
+- `MONOLITH_WEB_HOST` — default `127.0.0.1`
+- `MONOLITH_WEB_PORT` — default `8765`
+
+The canonical local development URL is:
+
+    http://127.0.0.1:8765/
+
+If you start uvicorn directly or use a service wrapper, export the variables in that shell or service wrapper.
+
 
 ## Model config
 

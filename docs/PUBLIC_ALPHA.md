@@ -22,8 +22,10 @@ Monolith is currently intended for users who:
 
 The supported alpha path is:
 
-    git clone
+    git clone https://github.com/WumboLabs/monolith.git
+    cd monolith
     python -m venv .venv
+    source .venv/bin/activate
     pip install -r requirements.txt
     cp configs/models.example.yaml configs/models.yaml
     python scripts/init_db.py

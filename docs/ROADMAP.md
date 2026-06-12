@@ -43,13 +43,7 @@ This roadmap tracks near-term public-alpha work. It is intentionally conservativ
 - Improved first-run empty states on `/models`, `/chat`, and `/eval`.
 - Documented setup diagnostics in install, troubleshooting, and public-alpha docs.
 
-## Current milestone
-
 ### alpha v0.11.9 — terminal workbench UI shell
-
-Status: release candidate.
-
-Completed in this milestone:
 
 - Added a coherent workbench UI concept document.
 - Locked local WebUI startup to `scripts/run_webui.py` and `http://127.0.0.1:8765/`.
@@ -57,10 +51,9 @@ Completed in this milestone:
 - Added shared table pagination with a 5-row default and adjustable row limits.
 - Added active tab highlighting and terminal-readable typography.
 - Preserved existing routes, workflows, and conservative safety boundaries.
-- Deferred clean-clone install testing until after the UI shell stabilized.
 - Deferred deeper multi-pane/TUI behavior to a later polish milestone.
 
-## Next milestone
+## Current milestone
 
 ### alpha v0.11.10 — clean-clone install validation and release hardening
 

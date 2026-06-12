@@ -48,8 +48,7 @@ chat_profiles:
     # Optional advanced llama.cpp arguments.
     # Use a YAML list, not a single shell string.
     # These are appended to Monolith's normal llama.cpp argument list.
-    extra_args:
-      - --no-mmproj
+    extra_args: []
 
     notes:
       - Public alpha example profile.
