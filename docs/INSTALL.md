@@ -66,6 +66,22 @@ Example fields to update:
     python scripts/migrate_hermes_eval.py
     python scripts/migrate_agent_lab.py
 
+## Check setup status
+
+Run the read-only setup checker:
+
+    python scripts/setup_check.py
+
+Optional JSON output:
+
+    python scripts/setup_check.py --json
+
+Strict mode returns non-zero only when setup errors are present:
+
+    python scripts/setup_check.py --strict
+
+Warnings are allowed during alpha setup. For example, a machine may not have local GGUF files yet or may use a llama.cpp path outside the default example path.
+
 ## Start Monolith
 
     uvicorn dashboard_fastapi.app:app --host 127.0.0.1 --port 8000
@@ -74,15 +90,24 @@ Open:
 
     http://127.0.0.1:8000
 
+Open setup diagnostics:
+
+    http://127.0.0.1:8000/setup
+
+Raw setup diagnostics JSON:
+
+    http://127.0.0.1:8000/api/setup/status
+
 ## First useful workflow
 
-1. Open `/models`
-2. Search Hugging Face for a GGUF model
-3. Plan and start a controlled download
-4. Scan local inventory if needed
-5. Click "Create chat profile" on a local model
-6. Open `/chat`
-7. Select the generated profile and test the model
+1. Open `/setup` and review errors or warnings
+2. Open `/models`
+3. Search Hugging Face for a GGUF model
+4. Plan and start a controlled download
+5. Scan local inventory if needed
+6. Click "Create chat profile" on a local model
+7. Open `/chat`
+8. Select the generated profile and test the model
 
 ## Alpha limitations
 

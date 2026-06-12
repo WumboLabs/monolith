@@ -33,6 +33,7 @@ The supported alpha path is:
     python scripts/migrate_context_scaling.py
     python scripts/migrate_hermes_eval.py
     python scripts/migrate_agent_lab.py
+    python scripts/setup_check.py
     uvicorn dashboard_fastapi.app:app --host 127.0.0.1 --port 8000
 
 See `docs/INSTALL.md` for the full sequence.
@@ -40,6 +41,7 @@ See `docs/INSTALL.md` for the full sequence.
 ## What works
 
 - Local FastAPI web UI
+- First-run setup diagnostics through `/setup`, `/api/setup/status`, and `scripts/setup_check.py`
 - Local GGUF model registry
 - Generated chat profiles from discovered local models
 - Controlled Hugging Face GGUF download planning and execution
@@ -85,6 +87,16 @@ for safe examples and local/private prompt separation.
 ## Public-alpha expectations
 
 Expect rough edges, manual setup, and active iteration.
+
+After running migrations, use:
+
+    python scripts/setup_check.py
+
+or open:
+
+    /setup
+
+to review read-only first-run diagnostics.
 
 A clean install should not require the original author's machine names, model paths, homelab paths, or private infrastructure.
 

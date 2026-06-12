@@ -11,6 +11,22 @@ Run compile check:
 
     python -m compileall dashboard_fastapi scripts
 
+Run read-only setup diagnostics:
+
+    python scripts/setup_check.py
+
+For JSON output:
+
+    python scripts/setup_check.py --json
+
+If the web app starts, open:
+
+    /setup
+
+For raw setup diagnostics JSON, open:
+
+    /api/setup/status
+
 ## Database missing
 
 Run:
@@ -25,7 +41,9 @@ Run:
 
 ## Model does not appear in Chat
 
-Open `/models`.
+Open `/setup` first and check for model config, local GGUF inventory, and chat-profile warnings.
+
+Then open `/models`.
 
 Check:
 
