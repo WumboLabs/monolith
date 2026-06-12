@@ -1,5 +1,13 @@
 # Monolith Changelog
 
+## alpha v0.11.9 - 2026-06-11
+
+- Documented the terminal workbench UI direction for the v0.11.9 shell.
+- Locked the local WebUI launcher to `scripts/run_webui.py` on `http://127.0.0.1:8765/`.
+- Added shared workbench table pagination with a 5-row default and adjustable row limits.
+- Added terminal workbench CSS shell refinements, active tab highlighting, and terminal-readable typography.
+- Deferred deeper multi-pane/TUI behavior to a later polish milestone.
+
 ## alpha v0.11.8 - 2026-06-11
 
 - Added read-only first-run setup diagnostics at `/setup`.

@@ -14,7 +14,7 @@ It is currently useful as a local AI workbench for technical users, but it is no
 
 Current version:
 
-    alpha v0.11.8
+    alpha v0.11.9
 
 ## What Monolith is for
 
@@ -98,8 +98,9 @@ Recent examples:
 - `alpha v0.11.5` — WumboCore / Monochrome Lime theme pass and Agent Lab archiving
 - `alpha v0.11.6` — portable Workstation monitoring and ticker hardening
 - `alpha v0.11.7` — public-alpha generic install audit and documentation cleanup
+- `alpha v0.11.9` — terminal workbench UI shell, fixed local WebUI launcher, table pagination, active tabs, and typography refinement
 - `alpha v0.11.8` — first-run setup diagnostics and setup hardening
-- `alpha v0.11.8.1` — next small patch milestone
+- `alpha v0.11.10` — clean-clone install validation and release hardening
 
 ## Canonical local WebUI
 

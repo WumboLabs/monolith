@@ -35,13 +35,7 @@ This roadmap tracks near-term public-alpha work. It is intentionally conservativ
 - Updated troubleshooting database migration instructions.
 - Corrected recent release dates to local machine date.
 
-## Current milestone
-
 ### alpha v0.11.8 — first-run and setup hardening
-
-Goal: reduce first-run friction for technical users installing Monolith on a fresh Linux machine.
-
-Completed in this milestone:
 
 - Added read-only setup diagnostics at `/setup`.
 - Added raw setup diagnostics JSON at `/api/setup/status`.
@@ -49,25 +43,36 @@ Completed in this milestone:
 - Improved first-run empty states on `/models`, `/chat`, and `/eval`.
 - Documented setup diagnostics in install, troubleshooting, and public-alpha docs.
 
-Remaining follow-up candidates:
-
-- Run and document a clean-clone install test.
-- Consider lightweight GitHub issue templates if Issues are enabled.
-
-## Next milestone
+## Current milestone
 
 ### alpha v0.11.9 — terminal workbench UI shell
 
-Goal: make Monolith feel like a local technical workbench while preserving existing routes, workflows, and conservative safety boundaries.
+Status: release candidate.
+
+Completed in this milestone:
+
+- Added a coherent workbench UI concept document.
+- Locked local WebUI startup to `scripts/run_webui.py` and `http://127.0.0.1:8765/`.
+- Refined the global shell, sidebar, status ticker, cards, panels, and tables.
+- Added shared table pagination with a 5-row default and adjustable row limits.
+- Added active tab highlighting and terminal-readable typography.
+- Preserved existing routes, workflows, and conservative safety boundaries.
+- Deferred clean-clone install testing until after the UI shell stabilized.
+- Deferred deeper multi-pane/TUI behavior to a later polish milestone.
+
+## Next milestone
+
+### alpha v0.11.10 — clean-clone install validation and release hardening
+
+Goal: validate the public-alpha install path from a clean clone after the v0.11.9 UI shell baseline.
 
 Planned work:
 
-- Add a coherent workbench UI concept document.
-- Refine the global shell, sidebar, status ticker, cards, panels, and tables.
-- Make the dashboard landing page feel more like an instrument panel.
-- Bring `/setup`, `/models`, `/chat`, and `/eval` into the same visual language.
-- Keep changes additive and reversible.
-- Defer clean-clone install testing until the UI shell stabilizes.
+- Run a clean-clone install test from the documented public-alpha path.
+- Capture any missing dependency, migration, setup, or documentation gaps.
+- Verify the fixed `scripts/run_webui.py` launcher and `http://127.0.0.1:8765/` WebUI path.
+- Tighten install, configuration, troubleshooting, and public-alpha docs based on real clean-clone notes.
+- Consider lightweight GitHub issue templates if Issues are enabled.
 
 ## Later candidates
 
