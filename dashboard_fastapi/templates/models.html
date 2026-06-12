@@ -7,6 +7,22 @@
   Read-only model registry loaded from <code>{{ registry_path }}</code>. Download support remains metadata-only.
 </p>
 
+{% if setup.overall_status != "ok" %}
+<section class="run-alert">
+  <strong>Setup attention.</strong>
+  Monolith found {{ setup.counts.error }} errors and {{ setup.counts.warn }} warnings.
+  <a href="/setup">Open Setup Status</a>.
+</section>
+{% endif %}
+
+{% if rows | length == 0 %}
+<section class="run-alert">
+  <strong>No model registry entries found.</strong>
+  Copy <code>configs/models.example.yaml</code> to <code>configs/models.yaml</code>, edit local paths, or scan local GGUF inventory.
+  <a href="/setup">Open Setup Status</a>.
+</section>
+{% endif %}
+
 <section class="cards">
   <div class="card">
     <div class="metric-label">Registry entries</div>

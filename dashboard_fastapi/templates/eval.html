@@ -58,7 +58,21 @@
 </section>
 {% endif %}
 
+{% if setup.overall_status == "error" %}
+<section class="run-alert">
+  <strong>Setup incomplete.</strong>
+  Monolith found {{ setup.counts.error }} setup errors.
+  <a href="/setup">Open Setup Status</a>.
+</section>
+{% endif %}
 
+{% if not eval_profiles %}
+<section class="run-alert">
+  <strong>No eval-ready profiles available.</strong>
+  Configure an active model profile before running the core-v2 suite.
+  <a href="/setup">Open Setup Status</a>.
+</section>
+{% endif %}
 
 <section class="dashboard-panel eval-runner-panel">
   <div class="section-heading-row">
@@ -71,12 +85,16 @@
   <form id="evalRunnerForm" class="eval-runner-form">
     <label>
       Model profile
-      <select id="evalProfile" required>
-        {% for profile in eval_profiles %}
-        <option value="{{ profile.key }}" data-ctx="{{ profile.ctx_size }}" {% if not profile.model_exists %}disabled{% endif %}>
-          {{ profile.label }}{% if not profile.model_exists %} — missing file{% endif %}
-        </option>
-        {% endfor %}
+      <select id="evalProfile" required {% if not eval_profiles %}disabled{% endif %}>
+        {% if eval_profiles %}
+          {% for profile in eval_profiles %}
+          <option value="{{ profile.key }}" data-ctx="{{ profile.ctx_size }}" {% if not profile.model_exists %}disabled{% endif %}>
+            {{ profile.label }}{% if not profile.model_exists %} — missing file{% endif %}
+          </option>
+          {% endfor %}
+        {% else %}
+          <option value="">No eval profiles available</option>
+        {% endif %}
       </select>
     </label>
 
@@ -110,7 +128,7 @@
       <input id="evalTemp" type="number" min="0" max="2" step="0.1" value="0.2">
     </label>
 
-    <button id="evalRunButton" type="submit" class="send-button">Run suite</button>
+    <button id="evalRunButton" type="submit" class="send-button" {% if not eval_profiles %}disabled{% endif %}>Run suite</button>
     <button id="evalAbortButton" type="button" class="chat-action-button eval-abort-button" disabled>Stop run</button>
     <button id="evalCleanupButton" type="button" class="chat-action-button eval-cleanup-button">Clear stale eval process</button>
   </form>

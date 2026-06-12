@@ -5144,6 +5144,7 @@ def local_eval(request: Request):
             "prompt_root": str(PROMPT_SUITE_ROOT),
             "import_summary": import_summary,
             "eval_profiles": active_eval_profiles(),
+            "setup": setup_status_payload(),
         },
     )
 
@@ -6204,6 +6205,7 @@ def models(request: Request):
             "missing_count": missing_count,
             "active_count": active_count,
             "registry_path": str(MODELS_CONFIG),
+            "setup": setup_status_payload(),
         },
     )
 
@@ -6228,6 +6230,7 @@ def chat(request: Request):
         "chat.html",
         {
             "profiles": current_chat_profiles(),
+            "setup": setup_status_payload(),
         },
     )
 

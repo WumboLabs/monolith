@@ -3,6 +3,22 @@
 
 <h1>Chat</h1>
 
+{% if setup.overall_status == "error" %}
+<section class="run-alert">
+  <strong>Setup incomplete.</strong>
+  Monolith found {{ setup.counts.error }} setup errors.
+  <a href="/setup">Open Setup Status</a>.
+</section>
+{% endif %}
+
+{% if not profiles %}
+<section class="run-alert">
+  <strong>No chat profiles available.</strong>
+  Configure <code>configs/models.yaml</code> or create a generated chat profile from a discovered local model.
+  <a href="/setup">Open Setup Status</a>.
+</section>
+{% endif %}
+
 <section class="chat-layout">
   <div class="chat-panel">
     <div id="chatLog" class="chat-log">
@@ -24,16 +40,20 @@
 
       <div class="input-hint">Enter sends. Shift+Enter inserts a newline.</div>
 
-      <button id="sendButton" type="submit" class="send-button">Send</button>
+      <button id="sendButton" type="submit" class="send-button" {% if not profiles %}disabled{% endif %}>Send</button>
     </form>
 
     <div class="chat-controls chat-controls-footer">
       <label class="chat-control-field profile-field">
         Model profile
-        <select id="profile">
-          {% for key, profile in profiles.items() %}
-          <option value="{{ key }}">{{ profile.label }}</option>
-          {% endfor %}
+        <select id="profile" {% if not profiles %}disabled{% endif %}>
+          {% if profiles %}
+            {% for key, profile in profiles.items() %}
+            <option value="{{ key }}">{{ profile.label }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="">No profiles available</option>
+          {% endif %}
         </select>
       </label>
 
