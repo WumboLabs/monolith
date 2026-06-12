@@ -101,6 +101,18 @@ Recent examples:
 - `alpha v0.11.8` — first-run setup diagnostics and setup hardening
 - `alpha v0.11.8.1` — next small patch milestone
 
+## Canonical local WebUI
+
+Monolith's local development WebUI uses one fixed default address:
+
+    http://127.0.0.1:8765/
+
+Start it with:
+
+    python scripts/run_webui.py
+
+The default can be overridden through `MONOLITH_WEB_HOST` and `MONOLITH_WEB_PORT`, but project docs and local validation should use port `8765`.
+
 Current version is tracked in:
 
 - `VERSION`

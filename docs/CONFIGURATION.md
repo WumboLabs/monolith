@@ -26,7 +26,7 @@ Defaults:
     MONOLITH_MODEL_DOWNLOAD_ROOT=~/Monolith/models/huggingface
     MONOLITH_QUANT_LAB_ROOT=./quant-lab
 
-Monolith does not automatically load `.env` yet. Export variables in your shell or service wrapper before starting uvicorn.
+`scripts/run_webui.py` loads `.env` automatically before starting the WebUI. If you start uvicorn directly or use a service wrapper, export the variables in that shell or service wrapper.
 
 ## Model config
 

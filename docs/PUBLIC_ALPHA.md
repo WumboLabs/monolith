@@ -34,7 +34,7 @@ The supported alpha path is:
     python scripts/migrate_hermes_eval.py
     python scripts/migrate_agent_lab.py
     python scripts/setup_check.py
-    uvicorn dashboard_fastapi.app:app --host 127.0.0.1 --port 8000
+    python scripts/run_webui.py
 
 See `docs/INSTALL.md` for the full sequence.
 

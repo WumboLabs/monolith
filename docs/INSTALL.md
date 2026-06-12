@@ -84,19 +84,19 @@ Warnings are allowed during alpha setup. For example, a machine may not have loc
 
 ## Start Monolith
 
-    uvicorn dashboard_fastapi.app:app --host 127.0.0.1 --port 8000
+    python scripts/run_webui.py
 
 Open:
 
-    http://127.0.0.1:8000
+    http://127.0.0.1:8765
 
 Open setup diagnostics:
 
-    http://127.0.0.1:8000/setup
+    http://127.0.0.1:8765/setup
 
 Raw setup diagnostics JSON:
 
-    http://127.0.0.1:8000/api/setup/status
+    http://127.0.0.1:8765/api/setup/status
 
 ## First useful workflow
 
