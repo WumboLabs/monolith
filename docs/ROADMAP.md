@@ -54,6 +54,21 @@ Remaining follow-up candidates:
 - Run and document a clean-clone install test.
 - Consider lightweight GitHub issue templates if Issues are enabled.
 
+## Next milestone
+
+### alpha v0.11.9 — terminal workbench UI shell
+
+Goal: make Monolith feel like a local technical workbench while preserving existing routes, workflows, and conservative safety boundaries.
+
+Planned work:
+
+- Add a coherent workbench UI concept document.
+- Refine the global shell, sidebar, status ticker, cards, panels, and tables.
+- Make the dashboard landing page feel more like an instrument panel.
+- Bring `/setup`, `/models`, `/chat`, and `/eval` into the same visual language.
+- Keep changes additive and reversible.
+- Defer clean-clone install testing until the UI shell stabilizes.
+
 ## Later candidates
 
 ### Packaging
