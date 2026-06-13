@@ -109,3 +109,39 @@ Use the local machine date when writing release notes:
     date '+%Y-%m-%d %H:%M:%S %Z'
 
 Avoid guessing release dates from chat timestamps or UTC-adjacent session logs.
+
+## Clean-clone validation status
+
+A clean-clone install was validated during public-alpha hardening.
+
+Confirmed working:
+
+- Fresh clone from `WumboLabs/monolith`.
+- Python virtual environment creation.
+- Python dependency installation from `requirements.txt`.
+- Local runtime directory creation.
+- Example model config copied to `configs/models.yaml`.
+- SQLite database initialization.
+- Current database migrations.
+- `scripts/setup_check.py` completes with warnings but no errors.
+- `scripts/run_webui.py` starts the local WebUI.
+- Core routes load successfully:
+  - `/`
+  - `/setup`
+  - `/models`
+  - `/chat`
+  - `/eval`
+  - `/context`
+  - `/workstation`
+  - `/api/setup/status`
+
+Expected clean-clone warnings:
+
+- No configured chat profiles.
+- No local GGUF models.
+- No llama.cpp binaries.
+- No existing run/eval data.
+- No local LLMGauge report data.
+
+These warnings are expected in a new environment. They indicate that Monolith is installed but not yet connected to local models, llama.cpp runtimes, or previous evaluation data.
+
