@@ -144,4 +144,3 @@ Expected clean-clone warnings:
 - No local LLMGauge report data.
 
 These warnings are expected in a new environment. They indicate that Monolith is installed but not yet connected to local models, llama.cpp runtimes, or previous evaluation data.
-
