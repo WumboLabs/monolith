@@ -2181,22 +2181,48 @@ def setup_status_payload() -> dict[str, Any]:
     llama_tokenize_path = Path(LLAMA_TOKENIZE).expanduser()
     llama_completion_exists = llama_completion_path.exists()
     llama_tokenize_exists = llama_tokenize_path.exists()
+    llama_completion_executable = os.access(llama_completion_path, os.X_OK)
+    llama_tokenize_executable = os.access(llama_tokenize_path, os.X_OK)
+    llama_completion_source = (
+        "MONOLITH_LLAMA_COMPLETION"
+        if os.environ.get("MONOLITH_LLAMA_COMPLETION")
+        else "default fallback"
+    )
+    llama_tokenize_source = (
+        "MONOLITH_LLAMA_TOKENIZE"
+        if os.environ.get("MONOLITH_LLAMA_TOKENIZE")
+        else "default fallback"
+    )
 
     add_check(
-        "ok" if llama_completion_exists else "warn",
+        "ok" if llama_completion_exists and llama_completion_executable else "warn",
         "llama.cpp completion binary",
-        f"{llama_completion_path}",
-        "Set MONOLITH_LLAMA_COMPLETION or build/install llama.cpp."
+        (
+            f"{llama_completion_path} "
+            f"(source: {llama_completion_source}, "
+            f"exists: {llama_completion_exists}, "
+            f"executable: {llama_completion_executable})"
+        ),
+        "Set MONOLITH_LLAMA_COMPLETION in .env to your llama.cpp generation binary, or build/install llama.cpp."
         if not llama_completion_exists
+        else "Make the configured llama.cpp generation binary executable."
+        if not llama_completion_executable
         else "No action needed.",
     )
 
     add_check(
-        "ok" if llama_tokenize_exists else "warn",
+        "ok" if llama_tokenize_exists and llama_tokenize_executable else "warn",
         "llama.cpp tokenize binary",
-        f"{llama_tokenize_path}",
-        "Set MONOLITH_LLAMA_TOKENIZE or build/install llama.cpp."
+        (
+            f"{llama_tokenize_path} "
+            f"(source: {llama_tokenize_source}, "
+            f"exists: {llama_tokenize_exists}, "
+            f"executable: {llama_tokenize_executable})"
+        ),
+        "Set MONOLITH_LLAMA_TOKENIZE in .env to your llama-tokenize binary, or build/install llama.cpp."
         if not llama_tokenize_exists
+        else "Make the configured llama-tokenize binary executable."
+        if not llama_tokenize_executable
         else "No action needed.",
     )
 

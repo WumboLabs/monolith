@@ -104,3 +104,26 @@ Generated profiles are stored in SQLite:
 They do not edit `configs/models.yaml`.
 
 This is the preferred alpha workflow for downloaded models.
+
+## llama.cpp runtime paths
+
+Monolith does not require llama.cpp to be built inside the Monolith repository.
+
+There are two ways llama.cpp paths are used:
+
+- model profiles can define a `launcher` path for running a specific model
+- environment variables can define fallback/runtime helper paths used by setup diagnostics, token counting, and generated/runtime workflows
+
+If you already built llama.cpp elsewhere, keep it where it is and point Monolith at it.
+
+Example `.env` values:
+
+    MONOLITH_LLAMA_COMPLETION=$HOME/Projects/local-llm/llama.cpp/build/bin/llama-cli
+    MONOLITH_LLAMA_TOKENIZE=$HOME/Projects/local-llm/llama.cpp/build/bin/llama-tokenize
+
+Notes:
+
+- `MONOLITH_LLAMA_COMPLETION` is the current legacy environment variable name for the configured llama.cpp generation binary.
+- In newer llama.cpp builds, this will usually point at `llama-cli`.
+- `MONOLITH_LLAMA_TOKENIZE` should point at `llama-tokenize`.
+- Setup diagnostics report whether these paths come from explicit environment variables or default fallback paths.
