@@ -67,6 +67,80 @@ Planned work:
 - Tighten install, configuration, troubleshooting, and public-alpha docs based on real clean-clone notes.
 - Consider lightweight GitHub issue templates if Issues are enabled.
 
+## Dependency and runtime strategy
+
+Monolith should move toward a more self-contained local application, but in conservative stages.
+
+Near-term principle:
+
+- detect dependencies before trying to manage them
+- explain missing dependencies clearly
+- keep system-level changes explicit
+- avoid automatic GPU driver, CUDA, package-manager, firewall, or kernel-module changes in early alpha
+
+### alpha v0.11.14 — dependency and runtime detection
+
+Goal: expand setup diagnostics so Monolith can clearly report local runtime readiness.
+
+Planned work:
+
+- Detect Python environment quality.
+- Detect whether `nvidia-smi` is available.
+- Detect visible NVIDIA GPU state when available.
+- Detect llama.cpp binaries.
+- Detect whether llama.cpp binaries support required commands.
+- Detect configured GGUF inventory roots.
+- Detect missing model/profile/runtime prerequisites.
+- Show dependency/runtime status in `/setup`.
+- Keep missing GPU/model/runtime items as warnings unless they block core app startup.
+
+### alpha v0.11.15 — llama.cpp runtime manager design
+
+Goal: design a safe runtime registry for user-provided and Monolith-managed llama.cpp binaries.
+
+Planned work:
+
+- Define runtime metadata format.
+- Track llama.cpp commit/build/version metadata.
+- Track runtime path, backend type, and supported commands.
+- Track checksum/build provenance for managed runtimes.
+- Support user-provided runtime paths.
+- Support future Monolith-managed runtime bundles without changing existing configs.
+
+### alpha v0.11.16 — optional managed llama.cpp runtime prototype
+
+Goal: prototype optional managed llama.cpp runtime support without bundling binaries directly into the main repo.
+
+Planned work:
+
+- Prototype managed CPU runtime registration.
+- Prototype managed CUDA runtime registration if technically safe.
+- Store managed runtimes outside committed source.
+- Prefer GitHub release artifacts or a separate runtime distribution location.
+- Add runtime smoke tests.
+- Keep system GPU driver installation out of scope.
+
+Later packaging candidates:
+
+- packaged CLI
+- `pipx install monolith`
+- `monolith init`
+- `monolith doctor`
+- `monolith web`
+- optional release-artifact runtime bundles
+- desktop/app packaging exploration
+
+Out of scope for early alpha:
+
+- automatic NVIDIA driver installation
+- automatic CUDA toolkit installation
+- system package manager mutation
+- kernel module changes
+- secure boot handling
+- firewall changes
+- background system service installation without explicit review
+
+
 ## Later candidates
 
 ### Packaging
