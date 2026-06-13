@@ -26,6 +26,8 @@ Defaults:
     MONOLITH_MODEL_DOWNLOAD_ROOT=~/Monolith/models/huggingface
     MONOLITH_QUANT_LAB_ROOT=./quant-lab
 
+LLMGauge is the public-facing name for this evaluation workflow. `MONOLITH_QUANT_LAB_ROOT` and `quant-lab` remain legacy/local integration names for now.
+
 ### WebUI host and port
 
 `scripts/run_webui.py` loads `.env` automatically before starting the local WebUI.

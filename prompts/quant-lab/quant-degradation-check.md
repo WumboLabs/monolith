@@ -2,7 +2,7 @@
 
 ## Category
 
-quant-lab
+llmgauge
 
 ## Prompt
 

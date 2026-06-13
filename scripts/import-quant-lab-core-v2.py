@@ -404,9 +404,9 @@ def import_report(report_path: Path, notes: str | None = None) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Import a Quant Lab core-v2 Markdown suite report into Monolith."
+        description="Import an LLMGauge core-v2 Markdown suite report into Monolith."
     )
-    parser.add_argument("report", help="Path to Quant Lab core-v2 Markdown report")
+    parser.add_argument("report", help="Path to LLMGauge core-v2 Markdown report")
     parser.add_argument("--notes", default=None, help="Optional notes for the suite import")
 
     args = parser.parse_args()

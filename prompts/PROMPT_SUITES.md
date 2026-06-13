@@ -10,7 +10,7 @@ Monolith prompt suites are stable evaluation batteries for local model testing.
 
 ### core-v2
 
-Historical baseline suite. Keep intact for comparison with previous Quant Lab and Monolith imports.
+Historical baseline suite. Keep intact for comparison with previous LLMGauge and Monolith imports.
 
 ### core-v3
 

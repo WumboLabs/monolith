@@ -30,7 +30,7 @@ This roadmap tracks near-term public-alpha work. It is intentionally conservativ
 
 - Generalized public-alpha docs and bundled prompt examples.
 - Removed remaining original-author machine/path assumptions from active public files.
-- Generalized default model, llama.cpp, inventory, and Quant Lab paths.
+- Generalized default model, llama.cpp, inventory, and evaluation workflow paths.
 - Added `docs/PUBLIC_ALPHA.md` with current public-alpha status and limitations.
 - Updated troubleshooting database migration instructions.
 - Corrected recent release dates to local machine date.
@@ -82,7 +82,7 @@ Planned work:
 - Add clearer empty-state UI when no GGUF models are configured.
 - Improve downloader documentation and recovery flows.
 
-### Local Eval / Quant Lab
+### Local Eval / LLMGauge
 
 - Improve scoring UI.
 - Improve run comparison views.
