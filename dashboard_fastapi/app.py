@@ -5,6 +5,7 @@ import uuid
 import threading
 from datetime import datetime
 import sqlite3
+import sys
 import yaml
 import socket
 import time
@@ -1970,6 +1971,55 @@ def setup_status_payload() -> dict[str, Any]:
                 "next_action": next_action,
             }
         )
+
+    python_version = ".".join(str(part) for part in sys.version_info[:3])
+    in_virtualenv = sys.prefix != sys.base_prefix
+    python_executable = sys.executable
+
+    add_check(
+        "ok",
+        "Python executable",
+        python_executable,
+        "No action needed.",
+    )
+    add_check(
+        "ok",
+        "Python version",
+        python_version,
+        "No action needed.",
+    )
+    add_check(
+        "ok" if in_virtualenv else "warn",
+        "Python virtual environment",
+        f"active: {in_virtualenv}",
+        "No action needed."
+        if in_virtualenv
+        else "Activate the Monolith virtual environment: source .venv/bin/activate",
+    )
+
+    required_imports = [
+        ("fastapi", "FastAPI"),
+        ("jinja2", "Jinja2"),
+        ("pydantic", "Pydantic"),
+        ("yaml", "PyYAML"),
+    ]
+    missing_imports: list[str] = []
+    for module_name, label in required_imports:
+        try:
+            __import__(module_name)
+        except Exception:
+            missing_imports.append(label)
+
+    add_check(
+        "ok" if not missing_imports else "error",
+        "Python package imports",
+        "all required imports available"
+        if not missing_imports
+        else "missing: " + ", ".join(missing_imports),
+        "No action needed."
+        if not missing_imports
+        else "Install requirements: python -m pip install -r requirements.txt",
+    )
 
     db_exists = DB_PATH.exists()
     config_exists = MODELS_CONFIG.exists()

@@ -87,12 +87,49 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def dependency_error_payload(exc: ModuleNotFoundError) -> dict[str, Any]:
+    missing = exc.name or "unknown"
+
+    return {
+        "overall_status": "error",
+        "summary": (
+            "Setup diagnostics could not load Monolith's Python application "
+            "dependencies."
+        ),
+        "counts": {
+            "total": 1,
+            "ok": 0,
+            "warn": 0,
+            "error": 1,
+        },
+        "checks": [
+            {
+                "status": "error",
+                "label": "Python dependencies",
+                "detail": f"Missing Python module: {missing}",
+                "next_action": (
+                    "Activate the Monolith virtual environment and install "
+                    "requirements: source .venv/bin/activate && "
+                    "python -m pip install -r requirements.txt"
+                ),
+            }
+        ],
+        "paths": {
+            "root": str(ROOT),
+            "python": sys.executable,
+        },
+    }
+
+
 def main() -> int:
     args = parse_args()
 
-    from dashboard_fastapi.app import setup_status_payload
-
-    payload = setup_status_payload()
+    try:
+        from dashboard_fastapi.app import setup_status_payload
+    except ModuleNotFoundError as exc:
+        payload = dependency_error_payload(exc)
+    else:
+        payload = setup_status_payload()
 
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
