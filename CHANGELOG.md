@@ -1,5 +1,13 @@
 # Monolith Changelog
 
+## alpha v0.11.10 - 2026-06-12
+
+- Validated the clean-clone public-alpha install path through setup, migrations, WebUI launch, and route smoke testing.
+- Documented clean-clone validation status in the public-alpha notes.
+- Completed public-facing LLMGauge terminology cleanup while preserving legacy/internal `quant-lab`, `MONOLITH_QUANT_LAB_ROOT`, and `quant_lab_*` names for compatibility.
+- Documented the dependency/runtime strategy for future setup diagnostics, llama.cpp runtime management, and packaging work.
+- Cleaned up public-alpha install documentation and release-facing whitespace.
+
 ## alpha v0.11.9 - 2026-06-11
 
 - Documented the terminal workbench UI direction for the v0.11.9 shell.
