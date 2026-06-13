@@ -43,6 +43,16 @@
     <a class="button-link" href="/api/setup/status">Open JSON</a>
   </div>
 
+  <div class="notice-card">
+    <strong>Interpreting setup status:</strong>
+    <span>
+      WARN means Monolith found something optional, external, or not yet configured.
+      Common first-run warnings include missing local GGUF files, unset llama.cpp paths,
+      and absent LLMGauge import roots. ERROR means setup needs attention before the
+      affected feature can work.
+    </span>
+  </div>
+
   <table class="compact-table">
     <thead>
       <tr>
