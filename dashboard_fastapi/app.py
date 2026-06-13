@@ -2247,6 +2247,71 @@ def setup_status_payload() -> dict[str, Any]:
         else "No action needed.",
     )
 
+    nvidia_smi_path = shutil.which("nvidia-smi")
+    if not nvidia_smi_path:
+        add_check(
+            "warn",
+            "NVIDIA GPU diagnostics",
+            "nvidia-smi not found.",
+            "Install/configure NVIDIA drivers outside Monolith if GPU acceleration is needed. Monolith does not install GPU drivers.",
+        )
+    else:
+        try:
+            completed = subprocess.run(
+                [
+                    nvidia_smi_path,
+                    "--query-gpu=name,driver_version,memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=5,
+            )
+            if completed.returncode == 0 and completed.stdout.strip():
+                first_gpu = completed.stdout.strip().splitlines()[0]
+                parts = [part.strip() for part in first_gpu.split(",")]
+                if len(parts) >= 3:
+                    gpu_name, driver_version, total_vram_mib = parts[:3]
+                    detail = (
+                        f"{gpu_name}; driver: {driver_version}; "
+                        f"total VRAM: {total_vram_mib} MiB; nvidia-smi: {nvidia_smi_path}"
+                    )
+                else:
+                    detail = f"nvidia-smi available at {nvidia_smi_path}; output: {first_gpu}"
+
+                add_check(
+                    "ok",
+                    "NVIDIA GPU diagnostics",
+                    detail,
+                    "No action needed.",
+                )
+            else:
+                add_check(
+                    "warn",
+                    "NVIDIA GPU diagnostics",
+                    (
+                        f"nvidia-smi found at {nvidia_smi_path} but query failed: "
+                        f"{(completed.stderr or completed.stdout).strip()[-500:]}"
+                    ),
+                    "Check NVIDIA driver/runtime configuration outside Monolith if GPU acceleration is needed.",
+                )
+        except subprocess.TimeoutExpired:
+            add_check(
+                "warn",
+                "NVIDIA GPU diagnostics",
+                f"nvidia-smi found at {nvidia_smi_path} but timed out.",
+                "Check NVIDIA driver/runtime configuration outside Monolith if GPU acceleration is needed.",
+            )
+        except Exception as exc:
+            add_check(
+                "warn",
+                "NVIDIA GPU diagnostics",
+                f"nvidia-smi check failed: {exc}",
+                "Check NVIDIA driver/runtime configuration outside Monolith if GPU acceleration is needed.",
+            )
+
     counts = {
         "total": len(checks),
         "ok": sum(1 for check in checks if check["status"] == "ok"),

@@ -105,6 +105,20 @@ They do not edit `configs/models.yaml`.
 
 This is the preferred alpha workflow for downloaded models.
 
+## GPU diagnostics
+
+Monolith can detect NVIDIA GPU readiness through `nvidia-smi` when it is available.
+
+Setup diagnostics report:
+
+- whether `nvidia-smi` is available
+- visible NVIDIA GPU name
+- NVIDIA driver version
+- total reported VRAM
+
+Monolith does not install or modify GPU drivers, CUDA packages, kernel modules, Secure Boot settings, or system package manager state. GPU driver/runtime setup remains an external platform prerequisite.
+
+
 ## llama.cpp runtime paths
 
 Monolith does not require llama.cpp to be built inside the Monolith repository.
