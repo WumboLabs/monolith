@@ -2153,9 +2153,9 @@ def setup_status_payload() -> dict[str, Any]:
     quant_lab_exists = QUANT_LAB_ROOT.exists()
     add_check(
         "ok" if quant_lab_exists else "warn",
-        "Quant Lab root",
+        "LLMGauge root",
         f"{QUANT_LAB_ROOT}",
-        "Set MONOLITH_QUANT_LAB_ROOT or create the expected Quant Lab directory if using eval imports."
+        "Set MONOLITH_QUANT_LAB_ROOT or create the expected LLMGauge directory if using eval imports."
         if not quant_lab_exists
         else "No action needed.",
     )
@@ -3330,10 +3330,10 @@ def run_eval_task_worker(task_id: str, profile_key: str, ctx_size: int, max_toke
 
     try:
         if not QUANT_LAB_RUNNER.exists():
-            raise RuntimeError(f"Quant Lab runner not found: {QUANT_LAB_RUNNER}")
+            raise RuntimeError(f"LLMGauge runner not found: {QUANT_LAB_RUNNER}")
 
         if not os.access(QUANT_LAB_RUNNER, os.X_OK):
-            raise RuntimeError(f"Quant Lab runner is not executable: {QUANT_LAB_RUNNER}")
+            raise RuntimeError(f"LLMGauge runner is not executable: {QUANT_LAB_RUNNER}")
 
         if not model_path or not Path(model_path).exists():
             raise RuntimeError(f"Model file not found: {model_path}")
@@ -3373,7 +3373,7 @@ def run_eval_task_worker(task_id: str, profile_key: str, ctx_size: int, max_toke
             current_item=include or "core-v2",
             current_model=label,
             command=" ".join(cmd),
-            last_message="Starting Quant Lab runner...",
+            last_message="Starting LLMGauge runner...",
         )
 
         process = subprocess.Popen(
@@ -3427,7 +3427,7 @@ def run_eval_task_worker(task_id: str, profile_key: str, ctx_size: int, max_toke
                 exit_code=exit_code,
                 completed_items=completed_count,
                 completed_at_local=current_timestamp_local(),
-                last_message="Local Eval run aborted by user." if abort_requested else f"Quant Lab runner failed with exit code {exit_code}",
+                last_message="Local Eval run aborted by user." if abort_requested else f"LLMGauge runner failed with exit code {exit_code}",
                 stdout_tail="".join(output_lines[-120:]),
             )
             return
@@ -3460,7 +3460,7 @@ def run_eval_task_worker(task_id: str, profile_key: str, ctx_size: int, max_toke
             import_id=suite_run_id,
             detail_url=f"/eval/imports/{suite_run_id}" if suite_run_id else None,
             result_url=f"/eval/imports/{suite_run_id}" if suite_run_id else None,
-            last_message="Completed and imported Quant Lab report.",
+            last_message="Completed and imported LLMGauge report.",
             stdout_tail="".join(output_lines[-120:]),
         )
 
@@ -3552,7 +3552,7 @@ def load_quant_lab_import_summary() -> dict[str, Any]:
 
 def clean_eval_output_for_display(value: str | None) -> tuple[str, bool]:
     """
-    Display-only cleaner for imported Quant Lab output.
+    Display-only cleaner for imported LLMGauge output.
 
     Raw imported output remains stored unchanged in SQLite and report files.
     This only removes obvious llama.cpp startup/banner/prompt wrapper noise
@@ -3656,7 +3656,7 @@ def clean_eval_output_for_display(value: str | None) -> tuple[str, bool]:
 
 def load_quant_lab_import_detail(suite_run_id: int) -> dict[str, Any]:
     if not quant_lab_tables_exist():
-        raise HTTPException(status_code=404, detail="Quant Lab import tables not found")
+        raise HTTPException(status_code=404, detail="LLMGauge import tables not found")
 
     suite = db_one(
         """
@@ -3668,7 +3668,7 @@ def load_quant_lab_import_detail(suite_run_id: int) -> dict[str, Any]:
     )
 
     if not suite:
-        raise HTTPException(status_code=404, detail="Quant Lab suite import not found")
+        raise HTTPException(status_code=404, detail="LLMGauge suite import not found")
 
     prompts = db_rows(
         """
@@ -3908,7 +3908,7 @@ def create_context_scaling_run_record(config: dict[str, Any]) -> int:
             (
                 config["profile_key"],
                 config["model_label"],
-                "llama.cpp / Quant Lab",
+                "llama.cpp / LLMGauge",
                 config.get("quant_label"),
                 "normal",
                 json_dumps_compact(config["contexts"]),
@@ -4010,7 +4010,7 @@ def copy_quant_lab_import_to_context_scaling(
     )
 
     if not suite:
-        raise RuntimeError(f"Imported Quant Lab suite not found: {suite_run_id}")
+        raise RuntimeError(f"Imported LLMGauge suite not found: {suite_run_id}")
 
     rows = db_rows(
         """
@@ -4108,10 +4108,10 @@ def run_context_scaling_task_worker(
 
     try:
         if not QUANT_LAB_RUNNER.exists():
-            raise RuntimeError(f"Quant Lab runner not found: {QUANT_LAB_RUNNER}")
+            raise RuntimeError(f"LLMGauge runner not found: {QUANT_LAB_RUNNER}")
 
         if not os.access(QUANT_LAB_RUNNER, os.X_OK):
-            raise RuntimeError(f"Quant Lab runner is not executable: {QUANT_LAB_RUNNER}")
+            raise RuntimeError(f"LLMGauge runner is not executable: {QUANT_LAB_RUNNER}")
 
         if not model_path or not Path(model_path).exists():
             raise RuntimeError(f"Model file not found: {model_path}")
@@ -4246,7 +4246,7 @@ def run_context_scaling_task_worker(
                         context_size,
                         prompt_rel_path,
                         status="failed",
-                        error_text=f"Quant Lab runner failed with exit code {exit_code}",
+                        error_text=f"LLMGauge runner failed with exit code {exit_code}",
                         exit_code=exit_code,
                         output_raw="".join(step_output),
                         peak_vram_mb=peak_vram_mb,
@@ -4268,7 +4268,7 @@ def run_context_scaling_task_worker(
                         context_size,
                         prompt_rel_path,
                         status="missing-report",
-                        error_text="Runner completed but no new Quant Lab report was found",
+                        error_text="Runner completed but no new LLMGauge report was found",
                         exit_code=exit_code,
                         output_raw="".join(step_output),
                         peak_vram_mb=peak_vram_mb,
@@ -5285,7 +5285,7 @@ def list_stale_eval_process_candidates() -> list[dict[str, Any]]:
     """
     Find likely stale Local Eval processes. This intentionally does not target
     arbitrary GPU processes. It only returns commands that look like Monolith /
-    Quant Lab eval runner activity.
+    LLMGauge eval runner activity.
     """
     try:
         completed = subprocess.run(
@@ -5377,7 +5377,7 @@ def api_eval_task_abort(task_id: str):
 
         task["abort_requested"] = True
         task["status"] = "aborting"
-        task["last_message"] = "Abort requested. Stopping Quant Lab runner..."
+        task["last_message"] = "Abort requested. Stopping LLMGauge runner..."
         task["updated_at_local"] = current_timestamp_local()
 
     cleanup_result = None
