@@ -104,7 +104,7 @@ Recent examples:
 
 Next planned milestone:
 
-- `alpha v0.11.10` — clean-clone install validation and release hardening
+- `alpha v0.11.11` — setup doctor hardening and clearer dependency/runtime diagnostics
 
 ## Canonical local WebUI
 
