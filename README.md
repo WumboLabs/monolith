@@ -14,7 +14,7 @@ It is currently useful as a local AI workbench for technical users, but it is no
 
 Current version:
 
-    alpha v0.11.11
+    alpha v0.11.12
 
 ## What Monolith is for
 
