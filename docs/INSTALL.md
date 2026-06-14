@@ -4,6 +4,45 @@ Monolith is a local AI workbench for running, tracking, downloading, and evaluat
 
 This alpha release is intended for technical users who already understand local model runtimes.
 
+## Repo-local bootstrap helper
+
+Monolith includes a conservative repo-local bootstrap helper:
+
+    python scripts/bootstrap_repo.py
+
+The bootstrap helper prepares a cloned checkout without mutating system-level dependencies.
+
+It can:
+
+- create `.venv` if missing
+- install `requirements.txt` into `.venv`
+- create repo-local runtime directories
+- copy `configs/models.example.yaml` to `configs/models.yaml` only when missing
+- run database initialization and migration scripts
+- run `scripts/setup_check.py`
+
+It does not:
+
+- use `sudo`
+- install GPU drivers
+- install CUDA or ROCm
+- build llama.cpp
+- download models by default
+- edit shell profiles
+- modify system package manager state
+
+Useful options:
+
+    python scripts/bootstrap_repo.py --dry-run
+    python scripts/bootstrap_repo.py --skip-pip
+    python scripts/bootstrap_repo.py --skip-db
+    python scripts/bootstrap_repo.py --skip-setup-check
+
+`--force-config` overwrites `configs/models.yaml` from the example config and requires `--yes`.
+
+    python scripts/bootstrap_repo.py --force-config --yes
+
+
 ## Supported alpha install path
 
 Use the direct local Python install.
