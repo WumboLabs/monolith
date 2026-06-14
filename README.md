@@ -104,7 +104,7 @@ Recent examples:
 
 Next planned milestone:
 
-- `alpha v0.11.11` — setup doctor hardening and clearer dependency/runtime diagnostics
+- `alpha v0.11.12` — repo-local bootstrap script and guided setup preparation
 
 ## Canonical local WebUI
 
