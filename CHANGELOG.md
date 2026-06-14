@@ -1,6 +1,14 @@
 # Monolith Changelog
 
-- Added and clean-clone validated `scripts/bootstrap_repo.py` for repo-local setup preparation.
+## alpha v0.11.12 - 2026-06-13
+
+- Added `scripts/bootstrap_repo.py` as a conservative repo-local bootstrap helper.
+- Documented bootstrap behavior in `docs/INSTALL.md`.
+- Validated bootstrap from a fresh clean clone, including virtual environment creation, dependency installation, runtime directory creation, config copy, database initialization, migrations, setup diagnostics, and WebUI launch.
+- Smoke-tested `/`, `/setup`, and `/api/setup/status` from the clean bootstrap checkout.
+- Added a website-safe roadmap marker block to `docs/ROADMAP.md`.
+- Added public website status metadata at `docs/website/public_status.json`.
+- Documented clean-clone bootstrap validation in public alpha documentation.
 
 ## alpha v0.11.11 - 2026-06-13
 

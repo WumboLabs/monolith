@@ -63,7 +63,7 @@ EVAL_TASK_LOCK = threading.Lock()
 
 APP_NAME = "Monolith"
 APP_SUBTITLE = "Local AI Workbench"
-APP_VERSION = "alpha v0.11.11"
+APP_VERSION = "alpha v0.11.12"
 
 app = FastAPI(title="Monolith")
 

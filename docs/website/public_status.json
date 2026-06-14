@@ -1,7 +1,7 @@
 {
   "project": "Monolith",
   "status": "Technical Public Alpha",
-  "current_release": "alpha v0.11.11",
+  "current_release": "alpha v0.11.12",
   "repository_url": "https://github.com/WumboLabs/monolith",
   "license_status": "Source-available; no open-source license selected yet",
   "canonical_local_url": "http://127.0.0.1:8765/",
