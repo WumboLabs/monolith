@@ -1,5 +1,12 @@
 # Monolith Changelog
 
+## alpha v0.11.11 - 2026-06-13
+
+- Hardened setup diagnostics with explicit Python executable, Python version, virtual environment, and required package import checks.
+- Documented and validated custom llama.cpp runtime paths through `MONOLITH_LLAMA_COMPLETION` and `MONOLITH_LLAMA_TOKENIZE`.
+- Added read-only NVIDIA GPU setup diagnostics using `nvidia-smi` when available.
+- Clarified setup-page warning interpretation for first-run and optional external dependency checks.
+
 ## alpha v0.11.10 - 2026-06-12
 
 - Validated the clean-clone public-alpha install path through setup, migrations, WebUI launch, and route smoke testing.
