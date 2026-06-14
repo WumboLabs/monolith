@@ -8,18 +8,20 @@ Monolith is a technical public alpha for local LLM workbench development, model 
 
 Current release state:
 
-- `alpha v0.11.10` — clean-clone install validation and release hardening
-- `alpha v0.11.11` — setup doctor hardening and clearer dependency/runtime diagnostics
 - `alpha v0.11.12` — repo-local bootstrap script and guided setup preparation
-- `alpha v0.11.13` — guided setup wizard
 
 Near-term direction:
 
-- improve first-run setup and diagnostics
+- finish guided setup preparation
+- improve setup diagnostics and dependency/runtime detection
 - make model onboarding clearer
 - add safer model profile editing
 - continue improving local evaluation workflows
 - improve comparison views for model runs and context tests
+
+Next planned milestone:
+
+- `alpha v0.11.13` — guided setup wizard
 
 Longer-term direction:
 
