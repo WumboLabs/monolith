@@ -1,0 +1,48 @@
+{
+  "project": "Monolith",
+  "status": "Technical Public Alpha",
+  "current_release": "alpha v0.11.11",
+  "repository_url": "https://github.com/WumboLabs/monolith",
+  "license_status": "Source-available; no open-source license selected yet",
+  "canonical_local_url": "http://127.0.0.1:8765/",
+  "canonical_start_command": "python scripts/run_webui.py",
+  "summary": "Monolith is a local-first AI workbench for testing, comparing, and evaluating local LLMs on real hardware.",
+  "audience": "Technical users comfortable with Linux, Python virtual environments, llama.cpp, GGUF models, YAML configuration, and manual setup.",
+  "positioning": [
+    "local-first AI workbench",
+    "real-hardware local model testing",
+    "practical local LLM evaluation",
+    "model lab console",
+    "terminal-friendly instrument panel"
+  ],
+  "capabilities": [
+    "Local GGUF model profile tracking",
+    "Generated chat profiles from configured local models",
+    "Basic chat and test run logging",
+    "Prompt and response metadata capture",
+    "Token count and speed tracking",
+    "VRAM and performance fields",
+    "Local eval prompt suite browsing and imports",
+    "Context-scaling evaluation scaffolding",
+    "Agent-backend evaluation scaffolding",
+    "Agent Lab proposal, review, and read-only workflow scaffolding",
+    "Setup diagnostics through the UI and terminal-side checks",
+    "Workstation monitoring with graceful fallback for optional metrics"
+  ],
+  "caveats": [
+    "Technical public alpha",
+    "Manual setup",
+    "No one-command installer yet",
+    "No bundled llama.cpp install",
+    "No GPU driver, CUDA, ROCm, or system runtime setup",
+    "No production multi-user or authenticated deployment model yet",
+    "No open-source license selected yet"
+  ],
+  "current_focus": [
+    "Clean-clone install validation",
+    "Setup diagnostics",
+    "Dependency and runtime detection",
+    "Bootstrap tooling",
+    "Safer model onboarding"
+  ]
+}
