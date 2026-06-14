@@ -104,7 +104,7 @@ Recent examples:
 
 Next planned milestone:
 
-- `alpha v0.11.12` — repo-local bootstrap script and guided setup preparation
+- `alpha v0.11.13` — guided setup wizard
 
 ## Canonical local WebUI
 
