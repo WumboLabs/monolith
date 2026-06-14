@@ -1,5 +1,7 @@
 # Monolith Changelog
 
+- Added and clean-clone validated `scripts/bootstrap_repo.py` for repo-local setup preparation.
+
 ## alpha v0.11.11 - 2026-06-13
 
 - Hardened setup diagnostics with explicit Python executable, Python version, virtual environment, and required package import checks.

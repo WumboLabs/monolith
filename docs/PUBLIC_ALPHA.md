@@ -110,6 +110,34 @@ Use the local machine date when writing release notes:
 
 Avoid guessing release dates from chat timestamps or UTC-adjacent session logs.
 
+## Bootstrap validation status
+
+The repo-local bootstrap helper has been validated from a fresh clone.
+
+Validated path:
+
+    git clone git@github.com:WumboLabs/monolith.git
+    cd monolith
+    python scripts/bootstrap_repo.py
+    source .venv/bin/activate
+    python scripts/setup_check.py
+    python scripts/run_webui.py
+
+Validation covered:
+
+- virtual environment creation
+- Python dependency installation from `requirements.txt`
+- repo-local runtime directory creation
+- `configs/models.yaml` creation from `configs/models.example.yaml`
+- SQLite database initialization
+- all current migration scripts
+- terminal setup diagnostics
+- WebUI launch
+- `/`, `/setup`, and `/api/setup/status` route smoke tests
+
+Expected first-run warnings remain normal until the user configures local models, llama.cpp paths, and optional LLMGauge imports.
+
+
 ## Clean-clone validation status
 
 A clean-clone install was validated during public-alpha hardening.
