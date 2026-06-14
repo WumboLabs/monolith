@@ -110,6 +110,18 @@ Use the local machine date when writing release notes:
 
 Avoid guessing release dates from chat timestamps or UTC-adjacent session logs.
 
+## Repo-local bootstrap helper
+
+For new alpha checkouts, the preferred preparation path is the repo-local bootstrap helper:
+
+    python scripts/bootstrap_repo.py
+
+The bootstrap helper prepares the local checkout without installing system packages, modifying GPU drivers, building llama.cpp, downloading models, or editing shell profiles.
+
+It can create the virtual environment, install Python dependencies, create repo-local runtime directories, copy the example model configuration when needed, initialize the SQLite database, run migrations, and execute the setup diagnostics.
+
+Manual setup remains the explicit reference path and fallback when you want to perform each step yourself.
+
 ## Bootstrap validation status
 
 The repo-local bootstrap helper has been validated from a fresh clone.

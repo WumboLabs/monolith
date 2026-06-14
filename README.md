@@ -95,12 +95,9 @@ Monolith uses alpha milestone versioning.
 
 Recent examples:
 
-- `alpha v0.11.5` — WumboCore / Monochrome Lime theme pass and Agent Lab archiving
-- `alpha v0.11.6` — portable Workstation monitoring and ticker hardening
-- `alpha v0.11.7` — public-alpha generic install audit and documentation cleanup
-- `alpha v0.11.10` — clean-clone install validation, public-alpha doc hardening, LLMGauge terminology cleanup, and runtime/dependency roadmap planning
-- `alpha v0.11.9` — terminal workbench UI shell, fixed local WebUI launcher, table pagination, active tabs, and typography refinement
-- `alpha v0.11.8` — first-run setup diagnostics and setup hardening
+- `alpha v0.11.12` — repo-local bootstrap helper and clean-clone validation
+- `alpha v0.11.11` — setup doctor hardening and runtime diagnostics
+- `alpha v0.11.10` — clean-clone install validation and release hardening
 
 Next planned milestone:
 
