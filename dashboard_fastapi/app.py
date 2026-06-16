@@ -42,7 +42,20 @@ MODELS_CONFIG = env_path("MONOLITH_MODELS_CONFIG", ROOT / "configs" / "models.ya
 PROMPT_LIBRARY_ROOT = ROOT / "prompts"
 PROMPT_SUITE_ROOT = PROMPT_LIBRARY_ROOT / "core-v2"
 
-QUANT_LAB_ROOT = env_path("MONOLITH_QUANT_LAB_ROOT", ROOT / "quant-lab")
+def llmgauge_root_path() -> Path:
+    llmgauge_value = os.environ.get("MONOLITH_LLMGAUGE_ROOT")
+    if llmgauge_value:
+        return Path(llmgauge_value).expanduser()
+
+    quant_lab_value = os.environ.get("MONOLITH_QUANT_LAB_ROOT")
+    if quant_lab_value:
+        return Path(quant_lab_value).expanduser()
+
+    return (ROOT / "quant-lab").expanduser()
+
+
+LLMGAUGE_ROOT = llmgauge_root_path()
+QUANT_LAB_ROOT = LLMGAUGE_ROOT
 QUANT_LAB_RUNNER = QUANT_LAB_ROOT / "scripts" / "run-core-v2-suite.sh"
 QUANT_LAB_RESULTS_DIR = QUANT_LAB_ROOT / "results"
 
@@ -2226,15 +2239,24 @@ def setup_status_payload() -> dict[str, Any]:
         else "No action needed.",
     )
 
-    quant_lab_exists = QUANT_LAB_ROOT.exists()
+    llmgauge_root_source = (
+        "MONOLITH_LLMGAUGE_ROOT"
+        if os.environ.get("MONOLITH_LLMGAUGE_ROOT")
+        else "MONOLITH_QUANT_LAB_ROOT"
+        if os.environ.get("MONOLITH_QUANT_LAB_ROOT")
+        else "default fallback"
+    )
+    llmgauge_root_exists = LLMGAUGE_ROOT.exists()
     add_check(
-        "ok" if quant_lab_exists else "warn",
+        "ok" if llmgauge_root_exists else "warn",
         "LLMGauge root",
-        f"{QUANT_LAB_ROOT}",
-        "Set MONOLITH_QUANT_LAB_ROOT or create the expected LLMGauge directory if using eval imports."
-        if not quant_lab_exists
+        f"{LLMGAUGE_ROOT} (source: {llmgauge_root_source})",
+        "Set MONOLITH_LLMGAUGE_ROOT to your LLMGauge repo/results root. "
+        "MONOLITH_QUANT_LAB_ROOT remains supported as a legacy fallback."
+        if not llmgauge_root_exists
         else "No action needed.",
     )
+
 
     download_root = Path(os.environ.get("MONOLITH_MODEL_DOWNLOAD_ROOT", str(Path.home() / "Monolith" / "models" / "huggingface"))).expanduser()
     download_root_exists = download_root.exists()
@@ -2338,6 +2360,7 @@ def setup_status_payload() -> dict[str, Any]:
             "root": str(ROOT),
             "database": str(DB_PATH),
             "models_config": str(MODELS_CONFIG),
+            "llmgauge_root": str(LLMGAUGE_ROOT),
             "quant_lab_root": str(QUANT_LAB_ROOT),
             "download_root": str(download_root),
         },
