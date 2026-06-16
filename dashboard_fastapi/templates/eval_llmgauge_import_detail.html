@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-title-row">
+  <div>
+    <h1>LLMGauge Import #{{ row.id }}</h1>
+    <p class="muted">
+      {{ row.artifact_type }} · {{ row.display_id }} · {{ row.imported_at_utc }}
+    </p>
+  </div>
+
+  <div class="detail-status-stack">
+    {% if row.validation_status == "valid" %}
+      <span class="status-pill status-good">VALID</span>
+    {% elif row.validation_status == "invalid" %}
+      <span class="status-pill status-bad">INVALID</span>
+    {% else %}
+      <span class="status-pill">UNKNOWN</span>
+    {% endif %}
+    <span class="status-pill">READ-ONLY</span>
+  </div>
+</div>
+
+{% include "partials/testbench_tabs.html" %}
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Artifact type</div>
+    <div class="metric-value metric-small">{{ row.artifact_type }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Suite</div>
+    <div class="metric-value metric-small">{{ row.suite_id or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Model</div>
+    <div class="metric-value metric-small">{{ row.model_id or "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Completed</div>
+    <div class="metric-value">{{ row.completed if row.completed is not none else "n/a" }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Failed</div>
+    <div class="metric-value">{{ row.failed if row.failed is not none else "n/a" }}</div>
+  </div>
+</section>
+
+<section class="run-file-strip">
+  <span class="micro-muted">Source:</span>
+  <code>{{ row.source_path }}</code>
+  <a href="/eval/llmgauge">Back to LLMGauge Imports</a>
+</section>
+
+<section class="dashboard-panel">
+  <h2>Artifact metadata</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>Schema version</th><td>{{ row.schema_version }}</td></tr>
+      <tr><th>Source kind</th><td>{{ row.source_path_kind }}</td></tr>
+      <tr><th>Source hash</th><td>{{ row.source_hash or "n/a" }}</td></tr>
+      <tr><th>Validation checked</th><td>{{ row.validation_checked }}</td></tr>
+      <tr><th>Validation status</th><td>{{ row.validation_status }}</td></tr>
+      <tr><th>Primary JSON</th><td>{{ row.primary_json_path or "n/a" }}</td></tr>
+      <tr><th>Report</th><td>{{ row.primary_report_path or "n/a" }}</td></tr>
+      <tr><th>Raw dir</th><td>{{ row.raw_dir_path or "n/a" }}</td></tr>
+      <tr><th>Logs dir</th><td>{{ row.logs_dir_path or "n/a" }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{% if row.artifact_type == "run" %}
+<section class="dashboard-panel">
+  <h2>Run summary</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>Run ID</th><td>{{ row.run_id }}</td></tr>
+      <tr><th>Status</th><td>{{ row.run_status }}</td></tr>
+      <tr><th>Timestamp UTC</th><td>{{ row.timestamp_utc }}</td></tr>
+      <tr><th>Suite version</th><td>{{ row.suite_version }}</td></tr>
+      <tr><th>Prompt count</th><td>{{ row.prompt_count }}</td></tr>
+      <tr><th>Manual score</th><td>{{ row.manual_score_total or "n/a" }} / {{ row.manual_score_max or "n/a" }}</td></tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if row.artifact_type == "ladder" %}
+<section class="dashboard-panel">
+  <h2>Ladder summary</h2>
+
+  <table class="compact-table metadata-table">
+    <tbody>
+      <tr><th>Ladder ID</th><td>{{ row.ladder_id }}</td></tr>
+      <tr><th>Contexts</th><td>{{ row.contexts }}</td></tr>
+      <tr><th>Include</th><td>{{ row.include }}</td></tr>
+      <tr><th>Only</th><td>{{ row.only }}</td></tr>
+      <tr><th>Child runs</th><td>{{ row.child_run_count }}</td></tr>
+      <tr><th>Total</th><td>{{ row.ladder_total }}</td></tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="dashboard-panel">
+  <h2>Stored artifact JSON</h2>
+  <details class="eval-output-details">
+    <summary>Show imported metadata snapshot</summary>
+    <pre>{{ row.artifact | tojson(indent=2) }}</pre>
+  </details>
+
+  {% if row.validation_errors %}
+  <details class="eval-output-details">
+    <summary>Show validation errors</summary>
+    <pre>{{ row.validation_errors | tojson(indent=2) }}</pre>
+  </details>
+  {% endif %}
+</section>
+
+{% endblock %}

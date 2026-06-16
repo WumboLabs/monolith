@@ -5382,6 +5382,96 @@ def eval_context_scaling_detail(request: Request, run_id: int):
     )
 
 
+
+def load_llmgauge_import_detail(import_id: int) -> dict[str, Any]:
+    if not llmgauge_import_tables_exist():
+        raise HTTPException(status_code=404, detail="LLMGauge import tables are not available")
+
+    row = db_one(
+        """
+        SELECT
+            a.id,
+            a.artifact_type,
+            a.source_path,
+            a.source_path_kind,
+            a.source_hash,
+            a.schema_version,
+            a.imported_at_utc,
+            a.validation_checked,
+            a.validation_status,
+            a.validation_errors_json,
+            a.artifact_json,
+            a.result_json_path,
+            a.report_path,
+            a.ladder_summary_path,
+            a.ladder_report_path,
+            a.raw_dir_path,
+            a.logs_dir_path,
+            r.run_id,
+            r.status AS run_status,
+            r.timestamp_utc,
+            r.suite_id AS run_suite_id,
+            r.suite_version,
+            r.model_id AS run_model_id,
+            r.model_profile_json,
+            r.prompt_count,
+            r.completed AS run_completed,
+            r.failed AS run_failed,
+            r.manual_score_total,
+            r.manual_score_max,
+            r.has_raw_artifacts,
+            r.has_logs,
+            l.ladder_id,
+            l.suite_id AS ladder_suite_id,
+            l.model_id AS ladder_model_id,
+            l.include_json,
+            l.only_json,
+            l.contexts_json,
+            l.child_run_count,
+            l.completed AS ladder_completed,
+            l.failed AS ladder_failed,
+            l.total AS ladder_total,
+            l.has_child_runs
+        FROM llmgauge_artifact_imports a
+        LEFT JOIN llmgauge_run_summaries r ON r.import_id = a.id
+        LEFT JOIN llmgauge_ladder_summaries l ON l.import_id = a.id
+        WHERE a.id = ?
+        """,
+        (import_id,),
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"LLMGauge import not found: {import_id}")
+
+    def parse_json_field(name: str, fallback: Any) -> Any:
+        raw = row.get(name)
+        if not raw:
+            return fallback
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return fallback
+
+    row["artifact"] = parse_json_field("artifact_json", {})
+    row["validation_errors"] = parse_json_field("validation_errors_json", [])
+    row["model_profile"] = parse_json_field("model_profile_json", {})
+    row["include"] = parse_json_field("include_json", [])
+    row["only"] = parse_json_field("only_json", [])
+    row["contexts"] = parse_json_field("contexts_json", [])
+
+    row["display_id"] = row.get("run_id") or row.get("ladder_id") or f"import-{row.get('id')}"
+    row["display_status"] = row.get("run_status") or row.get("validation_status") or "unknown"
+    row["suite_id"] = row.get("run_suite_id") or row.get("ladder_suite_id")
+    row["model_id"] = row.get("run_model_id") or row.get("ladder_model_id")
+    row["completed"] = row.get("run_completed") if row.get("artifact_type") == "run" else row.get("ladder_completed")
+    row["failed"] = row.get("run_failed") if row.get("artifact_type") == "run" else row.get("ladder_failed")
+    row["total"] = row.get("prompt_count") if row.get("artifact_type") == "run" else row.get("ladder_total")
+    row["primary_report_path"] = row.get("report_path") or row.get("ladder_report_path")
+    row["primary_json_path"] = row.get("result_json_path") or row.get("ladder_summary_path")
+
+    return row
+
+
 @app.get("/eval/llmgauge", response_class=HTMLResponse)
 def eval_llmgauge(request: Request):
     import_summary = load_llmgauge_import_summary()
@@ -5391,6 +5481,20 @@ def eval_llmgauge(request: Request):
         "eval_llmgauge.html",
         {
             "import_summary": import_summary,
+            "active_testbench_tab": "llmgauge",
+        },
+    )
+
+
+@app.get("/eval/llmgauge/imports/{import_id}", response_class=HTMLResponse)
+def eval_llmgauge_import_detail(request: Request, import_id: int):
+    detail = load_llmgauge_import_detail(import_id)
+
+    return templates.TemplateResponse(
+        request,
+        "eval_llmgauge_import_detail.html",
+        {
+            "row": detail,
             "active_testbench_tab": "llmgauge",
         },
     )

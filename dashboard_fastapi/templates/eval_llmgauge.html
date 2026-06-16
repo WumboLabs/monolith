@@ -56,7 +56,7 @@
     <tbody>
       {% for row in import_summary.latest %}
       <tr>
-        <td>#{{ row.id }}</td>
+        <td><a href="/eval/llmgauge/imports/{{ row.id }}">#{{ row.id }}</a></td>
         <td>
           <span class="status-pill">{{ row.artifact_type }}</span>
           <div class="micro-muted">{{ row.schema_version }}</div>
