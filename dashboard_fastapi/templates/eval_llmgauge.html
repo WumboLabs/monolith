@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>LLMGauge Imports</h1>
+
+{% include "partials/testbench_tabs.html" %}
+
+<p class="muted">
+  Read-only view of imported LLMGauge filesystem artifacts. LLMGauge remains the evaluation engine;
+  Monolith only indexes and displays imported run and ladder outputs.
+</p>
+
+<section class="cards">
+  <div class="card">
+    <div class="metric-label">Imported artifacts</div>
+    <div class="metric-value">{{ import_summary.artifact_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Runs</div>
+    <div class="metric-value">{{ import_summary.run_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Ladders</div>
+    <div class="metric-value">{{ import_summary.ladder_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Mode</div>
+    <div class="metric-value metric-small">Read-only</div>
+  </div>
+</section>
+
+<section class="dashboard-panel">
+  <div class="section-heading-row">
+    <div>
+      <h2>Imported artifacts</h2>
+      <p class="muted">Artifacts are linked by source path; raw files remain in the LLMGauge result directories.</p>
+    </div>
+  </div>
+
+  {% if import_summary.available and import_summary.latest %}
+  <table class="compact-table eval-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Artifact</th>
+        <th>Suite / Model</th>
+        <th>Status</th>
+        <th>Results</th>
+        <th>Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in import_summary.latest %}
+      <tr>
+        <td>#{{ row.id }}</td>
+        <td>
+          <span class="status-pill">{{ row.artifact_type }}</span>
+          <div class="micro-muted">{{ row.schema_version }}</div>
+        </td>
+        <td>
+          <strong>{{ row.display_id }}</strong>
+          <div class="micro-muted">{{ row.imported_at_utc }}</div>
+        </td>
+        <td>
+          {{ row.suite_id or "—" }}
+          <div class="micro-muted">{{ row.model_id or "—" }}</div>
+        </td>
+        <td>
+          {% if row.validation_status == "valid" %}
+            <span class="status-pill status-good">VALID</span>
+          {% elif row.validation_status == "invalid" %}
+            <span class="status-pill status-bad">INVALID</span>
+          {% else %}
+            <span class="status-pill">UNKNOWN</span>
+          {% endif %}
+          <div class="micro-muted">{{ row.source_path_kind }}</div>
+        </td>
+        <td>
+          {{ row.completed if row.completed is not none else "—" }} /
+          {{ row.total if row.total is not none else "—" }}
+          <div class="micro-muted">
+            failed {{ row.failed if row.failed is not none else "—" }}
+            {% if row.artifact_type == "ladder" %}
+              · children {{ row.child_run_count if row.child_run_count is not none else "—" }}
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          <div class="file-path model-path-clamp" title="{{ row.source_path }}">
+            {{ row.source_path }}
+          </div>
+          {% if row.primary_report_path %}
+          <div class="micro-muted">report: {{ row.primary_report_path }}</div>
+          {% endif %}
+          {% if row.raw_dir_path %}
+          <div class="micro-muted">raw: {{ row.raw_dir_path }}</div>
+          {% endif %}
+          {% if row.logs_dir_path %}
+          <div class="micro-muted">logs: {{ row.logs_dir_path }}</div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif import_summary.available %}
+  <p class="muted">No LLMGauge artifacts have been imported yet.</p>
+  {% else %}
+  <section class="run-alert">
+    <strong>LLMGauge import tables missing.</strong>
+    Run <code>python scripts/migrate_llmgauge_imports.py</code>.
+  </section>
+  {% endif %}
+</section>
+
+<section class="run-file-strip">
+  <span class="micro-muted">Importer:</span>
+  <code>python scripts/import_llmgauge_results.py /path/to/llmgauge-index.json</code>
+  <a href="/eval">Back to Local Eval</a>
+</section>
+
+{% endblock %}

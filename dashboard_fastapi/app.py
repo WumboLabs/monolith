@@ -3691,6 +3691,116 @@ def load_quant_lab_import_summary() -> dict[str, Any]:
     }
 
 
+def llmgauge_import_tables_exist() -> bool:
+    if not DB_PATH.exists():
+        return False
+
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name IN (
+                'llmgauge_artifact_imports',
+                'llmgauge_run_summaries',
+                'llmgauge_ladder_summaries'
+              )
+            """
+        ).fetchall()
+
+    return len(rows) == 3
+
+
+def load_llmgauge_import_summary() -> dict[str, Any]:
+    if not llmgauge_import_tables_exist():
+        return {
+            "available": False,
+            "artifact_count": 0,
+            "run_count": 0,
+            "ladder_count": 0,
+            "latest": [],
+        }
+
+    counts = db_one(
+        """
+        SELECT
+            COUNT(*) AS artifact_count,
+            SUM(CASE WHEN artifact_type = 'run' THEN 1 ELSE 0 END) AS run_count,
+            SUM(CASE WHEN artifact_type = 'ladder' THEN 1 ELSE 0 END) AS ladder_count
+        FROM llmgauge_artifact_imports
+        """
+    ) or {"artifact_count": 0, "run_count": 0, "ladder_count": 0}
+
+    latest = db_rows(
+        """
+        SELECT
+            a.id,
+            a.artifact_type,
+            a.source_path,
+            a.source_path_kind,
+            a.source_hash,
+            a.schema_version,
+            a.imported_at_utc,
+            a.validation_checked,
+            a.validation_status,
+            a.validation_errors_json,
+            a.result_json_path,
+            a.report_path,
+            a.ladder_summary_path,
+            a.ladder_report_path,
+            a.raw_dir_path,
+            a.logs_dir_path,
+            r.run_id,
+            r.status AS run_status,
+            r.timestamp_utc,
+            r.suite_id AS run_suite_id,
+            r.suite_version,
+            r.model_id AS run_model_id,
+            r.prompt_count,
+            r.completed AS run_completed,
+            r.failed AS run_failed,
+            r.manual_score_total,
+            r.manual_score_max,
+            r.has_raw_artifacts,
+            r.has_logs,
+            l.ladder_id,
+            l.suite_id AS ladder_suite_id,
+            l.model_id AS ladder_model_id,
+            l.contexts_json,
+            l.child_run_count,
+            l.completed AS ladder_completed,
+            l.failed AS ladder_failed,
+            l.total AS ladder_total,
+            l.has_child_runs
+        FROM llmgauge_artifact_imports a
+        LEFT JOIN llmgauge_run_summaries r ON r.import_id = a.id
+        LEFT JOIN llmgauge_ladder_summaries l ON l.import_id = a.id
+        ORDER BY a.id DESC
+        LIMIT 50
+        """
+    )
+
+    for row in latest:
+        row["display_id"] = row.get("run_id") or row.get("ladder_id") or f"import-{row.get('id')}"
+        row["display_status"] = row.get("run_status") or row.get("validation_status") or "unknown"
+        row["suite_id"] = row.get("run_suite_id") or row.get("ladder_suite_id")
+        row["model_id"] = row.get("run_model_id") or row.get("ladder_model_id")
+        row["completed"] = row.get("run_completed") if row.get("artifact_type") == "run" else row.get("ladder_completed")
+        row["failed"] = row.get("run_failed") if row.get("artifact_type") == "run" else row.get("ladder_failed")
+        row["total"] = row.get("prompt_count") if row.get("artifact_type") == "run" else row.get("ladder_total")
+        row["primary_report_path"] = row.get("report_path") or row.get("ladder_report_path")
+        row["primary_json_path"] = row.get("result_json_path") or row.get("ladder_summary_path")
+
+    return {
+        "available": True,
+        "artifact_count": counts.get("artifact_count") or 0,
+        "run_count": counts.get("run_count") or 0,
+        "ladder_count": counts.get("ladder_count") or 0,
+        "latest": latest,
+    }
+
+
 def clean_eval_output_for_display(value: str | None) -> tuple[str, bool]:
     """
     Display-only cleaner for imported LLMGauge output.
@@ -5268,6 +5378,20 @@ def eval_context_scaling_detail(request: Request, run_id: int):
             "results": detail["results"],
             "contexts": detail["contexts"],
             "prompts": detail["prompts"],
+        },
+    )
+
+
+@app.get("/eval/llmgauge", response_class=HTMLResponse)
+def eval_llmgauge(request: Request):
+    import_summary = load_llmgauge_import_summary()
+
+    return templates.TemplateResponse(
+        request,
+        "eval_llmgauge.html",
+        {
+            "import_summary": import_summary,
+            "active_testbench_tab": "llmgauge",
         },
     )
 
