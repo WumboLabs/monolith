@@ -90,18 +90,27 @@
           </div>
         </td>
         <td>
-          <div class="file-path model-path-clamp" title="{{ row.source_path }}">
-            {{ row.source_path }}
+          <div class="source-compact">
+            <div title="{{ row.source_path }}">
+              <span class="micro-muted">source</span>
+              <strong>{{ row.source_path.split("/")[-1] if row.source_path else "—" }}</strong>
+            </div>
+
+            {% if row.primary_report_path %}
+            <div title="{{ row.primary_report_path }}">
+              <span class="micro-muted">report</span>
+              {{ row.primary_report_path.split("/")[-1] }}
+            </div>
+            {% endif %}
+
+            {% if row.raw_dir_path or row.logs_dir_path %}
+            <div>
+              <span class="micro-muted">artifacts</span>
+              {% if row.raw_dir_path %}<span class="status-pill">raw</span>{% endif %}
+              {% if row.logs_dir_path %}<span class="status-pill">logs</span>{% endif %}
+            </div>
+            {% endif %}
           </div>
-          {% if row.primary_report_path %}
-          <div class="micro-muted">report: {{ row.primary_report_path }}</div>
-          {% endif %}
-          {% if row.raw_dir_path %}
-          <div class="micro-muted">raw: {{ row.raw_dir_path }}</div>
-          {% endif %}
-          {% if row.logs_dir_path %}
-          <div class="micro-muted">logs: {{ row.logs_dir_path }}</div>
-          {% endif %}
         </td>
       </tr>
       {% endfor %}

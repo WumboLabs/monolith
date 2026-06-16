@@ -4103,3 +4103,104 @@ th {
     letter-spacing: 0.035em !important;
   }
 }
+
+/* LLMGauge import table compact source display */
+.source-compact {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 12rem;
+}
+
+.source-compact > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.source-compact strong {
+  color: var(--text-primary);
+}
+
+/* Sidebar explicit code/label navigation. */
+.sidebar-nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sidebar-nav a::before {
+  content: none !important;
+  display: none !important;
+}
+
+.nav-code {
+  display: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.nav-label {
+  min-width: 0;
+}
+
+/* Collapsed sidebar: clean code-only rail. */
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 4.25rem 1fr;
+}
+
+.app-shell.sidebar-collapsed .sidebar {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  overflow: hidden;
+}
+
+.app-shell.sidebar-collapsed .sidebar-nav {
+  align-items: center;
+  gap: 0.65rem;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.app-shell.sidebar-collapsed .sidebar-nav a {
+  width: 2.55rem;
+  height: 2.2rem;
+  min-width: 2.55rem;
+  max-width: 2.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 0.18rem;
+  text-indent: 0 !important;
+  white-space: nowrap;
+}
+
+.app-shell.sidebar-collapsed .sidebar-nav .nav-label {
+  display: none !important;
+}
+
+.app-shell.sidebar-collapsed .sidebar-nav .nav-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--accent);
+}
+
+.app-shell.sidebar-collapsed .sidebar-nav a:hover .nav-code,
+.app-shell.sidebar-collapsed .sidebar-nav a.active .nav-code,
+.app-shell.sidebar-collapsed .sidebar-nav a[aria-current="page"] .nav-code {
+  color: var(--text-primary);
+}
+
+.app-shell.sidebar-collapsed .sidebar-nav a.active,
+.app-shell.sidebar-collapsed .sidebar-nav a[aria-current="page"] {
+  border-color: var(--accent);
+  background: rgba(190, 255, 45, 0.10);
+}
