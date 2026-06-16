@@ -50,8 +50,14 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def detect_input(path: Path) -> str:
-    if path.is_file() and path.name == "llmgauge-index.json":
-        return "index"
+    if path.is_file():
+        data = load_json(path)
+        if data.get("schema_version") == EXPORT_INDEX_SCHEMA:
+            return "index"
+        raise SystemExit(
+            "Unsupported JSON file. Expected schema_version "
+            f"{EXPORT_INDEX_SCHEMA!r}: {path}"
+        )
 
     if path.is_dir() and (path / "llmgauge-result.json").exists():
         return "run"
@@ -60,7 +66,7 @@ def detect_input(path: Path) -> str:
         return "ladder"
 
     raise SystemExit(
-        "Unsupported input. Expected run dir, ladder dir, or llmgauge-index.json: "
+        "Unsupported input. Expected run dir, ladder dir, or LLMGauge export index JSON: "
         f"{path}"
     )
 
@@ -91,6 +97,11 @@ def summarize_run_dir(path: Path) -> ArtifactSummary:
     schema_version = data.get("schema_version")
     validation_status = "valid" if schema_version == RUN_SCHEMA else "unknown"
 
+    run = data.get("run") if isinstance(data.get("run"), dict) else {}
+    suite = data.get("suite") if isinstance(data.get("suite"), dict) else {}
+    model = data.get("model") if isinstance(data.get("model"), dict) else {}
+    summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+
     return ArtifactSummary(
         artifact_type="run",
         source_path=path.resolve(),
@@ -102,18 +113,18 @@ def summarize_run_dir(path: Path) -> ArtifactSummary:
         metadata={
             "result_json": str(result_json),
             "report": str(path / "report.md") if (path / "report.md").exists() else None,
-            "run_id": data.get("run_id"),
-            "status": data.get("status"),
-            "timestamp_utc": data.get("timestamp_utc"),
-            "suite_id": data.get("suite_id"),
-            "suite_version": data.get("suite_version"),
-            "model_id": data.get("model_id"),
-            "model_profile": data.get("model_profile"),
-            "prompt_count": data.get("prompt_count"),
-            "completed": data.get("completed"),
-            "failed": data.get("failed"),
-            "manual_score_total": data.get("manual_score_total"),
-            "manual_score_max": data.get("manual_score_max"),
+            "run_id": run.get("run_id"),
+            "status": run.get("status"),
+            "timestamp_utc": run.get("timestamp_utc"),
+            "suite_id": suite.get("suite_id"),
+            "suite_version": suite.get("suite_version"),
+            "model_id": model.get("model_id"),
+            "model_profile": model.get("model_profile"),
+            "prompt_count": suite.get("prompt_count"),
+            "completed": summary.get("completed"),
+            "failed": summary.get("failed"),
+            "manual_score_total": summary.get("manual_score_total"),
+            "manual_score_max": summary.get("manual_score_max"),
             "has_raw_artifacts": (path / "raw").exists(),
             "has_logs": (path / "logs").exists(),
         },
