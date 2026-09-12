@@ -132,8 +132,8 @@ If you already built llama.cpp elsewhere, keep it where it is and point Monolith
 
 Example `.env` values:
 
-    MONOLITH_LLAMA_COMPLETION=$HOME/Projects/local-llm/llama.cpp/build/bin/llama-cli
-    MONOLITH_LLAMA_TOKENIZE=$HOME/Projects/local-llm/llama.cpp/build/bin/llama-tokenize
+    MONOLITH_LLAMA_COMPLETION=$HOME/Projects/local-llm/runtimes/llama.cpp-sm120-upgrade/build-cuda-sm120-new/bin/llama-cli
+    MONOLITH_LLAMA_TOKENIZE=$HOME/Projects/local-llm/runtimes/llama.cpp-sm120-upgrade/build-cuda-sm120-new/bin/llama-tokenize
 
 Notes:
 
